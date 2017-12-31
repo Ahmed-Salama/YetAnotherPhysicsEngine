@@ -13,3 +13,4 @@ Every part of the game can be thought of the same way which results eventually i
 
 ## Build
 You need [`npm`](https://nodejs.org/en/download/package-manager/#debian-and-ubuntu-based-linux-distributions). After you clone, you can do `npm install` to fetch all the dependencies once, then when changing the Typescript file you can then do `npm run build` to generate the Javascript transpiled code. The app is a static site so you can just launch `index.html` to load the game.
+Alternatively, you can run `npm run watch` to make the Typescript compiler watch the input files for changes.

@@ -1,0 +1,28 @@
+{
+  "name": "yapee",
+  "version": "0.0.1",
+  "description": "yet another physics engine",
+  "main": "main.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "tsc"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Ahmed-Salama/YetAnotherPhysicsEngine.git"
+  },
+  "author": "",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/Ahmed-Salama/YetAnotherPhysicsEngine/issues"
+  },
+  "homepage": "https://github.com/Ahmed-Salama/YetAnotherPhysicsEngine#readme",
+  "dependencies": {
+    "immutable": "^3.8.2",
+    "typescript": "^2.6.2"
+  },
+  "devDependencies": {
+    "@types/jquery": "^3.2.17",
+    "@types/rx": "^4.1.1"
+  }
+}

@@ -1,14 +1,14 @@
 ///<reference path='./node_modules/immutable/dist/immutable.d.ts'/>
 
 // constants
-const keyDefs = {
-    "37": "left",
-    "38": "up",
-    "39": "right",
-    "40": "down",
-    "32": "space",
-    "65": "jump"
-};
+const keyDefs = new Map([
+    [37, 'left'],
+    [38, 'up'],
+    [39, 'right'],
+    [40, 'down'],
+    [32, 'space'],
+    [65, 'jump'],
+]);
 const time_step = 150;
 const canvas_size = 1200;
 const canvas_offset_x = 50;
@@ -25,7 +25,12 @@ let debugging = false;
 // const test = new PhysicalObject();
 // test.velocity = new Vector2D(2, );
 
-function is_intersecting(l1, l2) {
+interface IntersectionResult {
+    intersection_exists: boolean;
+    intersection_point?: Vector2D;
+}
+
+function is_intersecting(l1: Line, l2: Line): IntersectionResult {
     const l1_constants = get_line_constants(l1);
     const A1 = l1_constants[0];
     const B1 = l1_constants[1];
@@ -38,15 +43,22 @@ function is_intersecting(l1, l2) {
 
     const det = A1 * B2 - A2 * B1;
 
-    if (Math.abs(det) <= eps) return false;
+    if (Math.abs(det) <= eps) {
+        return {
+            intersection_exists: false,
+        };
+    }
 
     const x = (B2 * C1 - B1 * C2) / det;
     const y = (A1 * C2 - A2 * C1) / det;
 
-    return { "intersection_exists": on_segment(l1, x, y) && on_segment(l2, x, y), "intersection_point": new Vector2D(x, y) };
+    return {
+        intersection_exists: on_segment(l1, x, y) && on_segment(l2, x, y),
+        intersection_point: new Vector2D(x, y)
+    };
 }
 
-function on_segment(line, x, y) {
+function on_segment(line: Line, x: number, y: number) {
     const X1 = line.startPosition.x;
     const X2 = line.endPosition.x;
     const Y1 = line.startPosition.y;
@@ -56,7 +68,7 @@ function on_segment(line, x, y) {
         Math.min(Y1, Y2) <= y && y <= Math.max(Y1, Y2);
 }
 
-function get_line_constants(line) {
+function get_line_constants(line: Line) {
     const X1 = line.startPosition.x;
     const X2 = line.endPosition.x;
     const Y1 = line.startPosition.y;
@@ -68,22 +80,22 @@ function get_line_constants(line) {
     return [A, B, C];
 }
 
-const key_pressed = {
-    "left": 0,
-    "right": 0,
-    "up": 0,
-    "down": 0
-};
+const key_pressed = new Map([
+    ['left', 0],
+    ['right', 0],
+    ['up', 0],
+    ['down', 0],
+]);
 
 $(document).ready(() => {
-    const input = $('body');
-    Rx.Observable.fromEvent(input, 'keydown')
-        .map((e: KeyboardEvent) => keyDefs[e.keyCode])
-        .subscribe(e => key_pressed[e] = 1);
+    const body = $('body');
+    Rx.Observable.fromEvent(body, 'keydown')
+        .map((e: KeyboardEvent) => keyDefs.get(e.keyCode))
+        .subscribe(e => key_pressed.set(e, 1));
 
-    Rx.Observable.fromEvent(input, 'keyup')
-        .map((e: KeyboardEvent) => keyDefs[e.keyCode])
-        .subscribe(e => key_pressed[e] = 0);
+    Rx.Observable.fromEvent(body, 'keyup')
+        .map((e: KeyboardEvent) => keyDefs.get(e.keyCode))
+        .subscribe(e => key_pressed.set(e, 0));
 
     const canvas = document.getElementById("canvas") as HTMLCanvasElement;
 
@@ -95,7 +107,7 @@ $(document).ready(() => {
     $time.scan((game_set, time_unit) => {
         return game_set.updated(time_unit.interval);
     }, new GameSet())
-        .subscribe(game_set => {
+        .subscribe((game_set: GameSet) => {
             ctx.clearRect(0, 0, canvas_size, canvas_size);
             game_set.draw(ctx);
         });
@@ -107,48 +119,75 @@ class Entity {
     constructor() {
         this.id = Math.random();
     }
-    public copy(new_values) {
+    public copy<T extends Entity>(new_values: {}): T {
         return Object.assign(this.get_default(), this, new_values);
     }
     public get_default() {
         return eval("new " + this.constructor.name + "()");
     }
-    public equals(e) {
+    public equals(e: Entity) {
         return this.id == e.id;
     }
+    public updated(time_unit: number, _: GameSet): Entity {
+        throw new Error('Unsupported method');
+    }
+    public move(vector: Vector2D): Entity {
+        throw new Error('Unsupported method');
+    }
+    public collide(delta_position: Vector2D, delta_angle: number, other: Entity,
+                   game_set: GameSet): CollisionResult {
+        throw new Error('Unsupported method');
+    }
+    public collideAll(delta_position: Vector2D, delta_angle: number,
+                      game_set: GameSet): GameSet {
+        throw new Error('Unsupported method');
+    }
+    public collide_ground(collision: Collision, game_set: GameSet): CollisionResult {
+        throw new Error('Unsupported method');
+    }
+    public rotate(delta_angle: number): Entity {
+        throw new Error('Unsupported method');
+    }
+    public reverse(): Entity {
+        throw new Error('Unsupported method');
+    }
+    public offset(other: Entity): Entity {
+        throw new Error('Unsupported method');
+    }
 }
+
 class Vector2D extends Entity {
     public x: number;
     public y: number;
 
-    constructor(ox, oy) {
+    constructor(ox: number, oy: number) {
         super();
         this.x = ox;
         this.y = oy
     }
-    public addDelta(dx, dy) {
+    public addDelta(dx: number, dy: number): Vector2D {
         return this.copy({ x: this.x + dx, y: this.y + dy });
     }
-    public addVector(vector) {
+    public addVector(vector: Vector2D): Vector2D {
         return this.copy({ x: this.x + vector.x, y: this.y + vector.y });
     }
-    public multiply(value) {
+    public multiply(value: number): Vector2D {
         return this.copy({ x: this.x * value, y: this.y * value });
     }
-    public multiplyX(value) {
+    public multiplyX(value: number): Vector2D {
         return this.copy({ x: this.x * value });
     }
     public normalize() {
         const angle = Math.atan2(this.y, this.x);
         return new Vector2D(Math.cos(angle), Math.sin(angle));
     }
-    public reverse() {
+    public reverse(): Vector2D {
         return this.copy({ x: -this.x, y: -this.y });
     }
-    public flipX() {
+    public flipX(): Vector2D {
         return this.copy({ x: -this.x });
     }
-    public resetX() {
+    public resetX(): Vector2D {
         return this.copy({ x: 0 });
     }
     public angle() {
@@ -157,7 +196,7 @@ class Vector2D extends Entity {
     public length() {
         return Math.sqrt(this.x * this.x + this.y * this.y);
     }
-    public rotate(deltaAngle) {
+    public rotate(deltaAngle: number) {
         const angle = this.angle();
         const length = this.length();
 
@@ -165,25 +204,26 @@ class Vector2D extends Entity {
 
         return new Vector2D(length * Math.cos(newAngle), length * Math.sin(newAngle));
     }
-    public reverseDirection(vector) {
+    public reverseDirection(vector: Vector2D) {
         const angle2 = Math.atan2(vector.y, vector.x);
         return this.rotate(-angle2).flipX().rotate(angle2);
     }
-    public to(vector) {
+    public to(vector: Vector2D) {
         return new Vector2D(vector.x - this.x, vector.y - this.y);
     }
-    public subtract(vector) {
+    public subtract(vector: Vector2D) {
         return new Vector2D(this.x - vector.x, this.y - vector.y);
     }
 }
 class Line extends Entity {
     public startPosition: Vector2D;
     public endPosition: Vector2D;
-    public collision_direction: number;
+    public collision_direction: Vector2D;
     public is_ground: boolean;
     public is_tire: boolean;
 
-    constructor(startPosition, endPosition, collision_direction?, is_ground?, is_tire?) {
+    constructor(startPosition: Vector2D, endPosition: Vector2D, collision_direction?: Vector2D,
+                               is_ground?: boolean, is_tire?: boolean) {
         super();
         this.startPosition = startPosition;
         this.endPosition = endPosition;
@@ -191,13 +231,21 @@ class Line extends Entity {
         this.is_ground = is_ground;
         this.is_tire = is_tire;
     }
-    offset(vector) {
+    public offset(vector: Vector2D): Line {
         return this.copy({ startPosition: this.startPosition.addVector(vector), endPosition: this.endPosition.addVector(vector) });
     }
-    rotate(angle) {
+    public rotate(angle: number): Line {
         return this.copy({ startPosition: this.startPosition.rotate(angle), endPosition: this.endPosition.rotate(angle) });
     }
 }
+
+interface CollisionResult {
+    game_set: Entity;
+    collision?: Collision;
+    delta_position: Vector2D;
+    delta_angle: number;
+}
+
 class PhysicalObject extends Entity {
     public position: Vector2D;
     public velocity: Vector2D;
@@ -215,7 +263,7 @@ class PhysicalObject extends Entity {
         this.mass = 1;
         this.lines = Immutable.List();
     }
-    public updated(time_unit, _) {
+    public updated(time_unit: number, _: GameSet) {
         const gravityVector = new Vector2D(0, 9.8);
         const air_drag_vector = this.velocity.multiply(0.3 * time_unit / 1000).reverse();
         return this.copy({
@@ -224,7 +272,7 @@ class PhysicalObject extends Entity {
             angle: this.angle + this.angularVelocity
         });
     }
-    public draw(ctx) {
+    public draw(ctx: CanvasRenderingContext2D) {
         const self = this;
         this.lines.forEach(line => {
             ctx.save();
@@ -257,7 +305,7 @@ class PhysicalObject extends Entity {
             ctx.restore();
         });
     }
-    public calculate_collision(other) {
+    public calculate_collision(other: PhysicalObject) {
         let intersection_exists = false;
         let intersection_result = null
         let selfLine = null;
@@ -266,7 +314,7 @@ class PhysicalObject extends Entity {
         this.lines.forEach(l1 => {
             other.lines.forEach(l2 => {
                 intersection_result = is_intersecting(l1.rotate(self.angle).offset(self.position), l2.rotate(other.angle).offset(other.position));
-                if (intersection_result["intersection_exists"]) {
+                if (intersection_result.intersection_exists) {
                     intersection_exists = true;
                     selfLine = l1;
                     otherLine = l2;
@@ -278,9 +326,10 @@ class PhysicalObject extends Entity {
             return new Collision(selfLine, otherLine, intersection_result);
         } else return null;
     }
-    public collideAll(delta_position, delta_angle, game_set) {
+    public collideAll(delta_position: Vector2D, delta_angle: number, game_set: GameSet): GameSet {
         const self = this;
-        const collidedRec = (delta_position_rec, delta_angle_rec, game_set_rec, remaining) => {
+        const collidedRec = (delta_position_rec: Vector2D, delta_angle_rec: number,
+                             game_set_rec: GameSet, remaining: Immutable.List<number>) => {
             if (remaining.size == 0) {
                 const updated_self = game_set_rec.contents.get(self.id);
                 return game_set_rec.replace_element(updated_self.move(delta_position_rec).rotate(delta_angle_rec));
@@ -291,24 +340,26 @@ class PhysicalObject extends Entity {
             const updated_self = game_set_rec.contents.get(self.id);
 
             const collision_result = updated_self.collide(delta_position_rec, delta_angle_rec, first_object, game_set_rec);
-            const new_game_set = collision_result["game_set"];
-            const new_delta_position = collision_result["delta_position"];
-            const new_delta_angle = collision_result["delta_angle"];
+            const new_game_set = collision_result.game_set as GameSet;
+            const new_delta_position = collision_result.delta_position;
+            const new_delta_angle = collision_result.delta_angle;
 
             return collidedRec(new_delta_position, new_delta_angle, new_game_set, remaining.shift());
         }
 
         return collidedRec(delta_position, delta_angle, game_set.replace_element(this), game_set.contents.keySeq().filter(o => o != this.id).toList());
     }
-    public collide(delta_position, delta_angle, other, game_set) {
+    public collide(delta_position: Vector2D, delta_angle: number, other: PhysicalObject,
+                   game_set: GameSet): CollisionResult {
         const advanced_self = this.move(delta_position).rotate(delta_angle);
 
         const collision = advanced_self.calculate_collision(other);
-        if (collision == null) return {
-            "game_set": game_set.replace_element(this),
-            "delta_position": delta_position,
-            "delta_angle": delta_angle
-        };
+        if (collision == null)
+            return {
+                game_set: game_set.replace_element(this),
+                delta_position: delta_position,
+                delta_angle: delta_angle
+            };
 
         if (collision.otherLine.is_ground) {
             return this.collide_ground(collision, game_set);
@@ -333,19 +384,20 @@ class PhysicalObject extends Entity {
             });
 
             return {
-                "game_set": game_set.replace_element(new_self).replace_element(new_other),
-                "collision": collision,
-                "delta_position": new Vector2D(0, 0),
-                "delta_angle": 0
+                game_set: game_set.replace_element(new_self).replace_element(new_other),
+                collision: collision,
+                delta_position: new Vector2D(0, 0),
+                delta_angle: 0
             };
         }
     }
-    public collide_ground(collision, game_set) {
+    public collide_ground(collision: Collision, game_set: GameSet): CollisionResult {
+        throw new Error('Unsupported method');
     }
-    public move(vector) {
+    public move(vector: Vector2D): PhysicalObject {
         return this.copy({ position: this.position.addVector(vector) });
     }
-    public rotate(delta_angle) {
+    public rotate(delta_angle: number): PhysicalObject {
         return this.copy({ angle: this.angle + delta_angle });
     }
 }
@@ -353,9 +405,9 @@ class PhysicalObject extends Entity {
 class Collision extends Entity {
     public selfLine: Line;
     public otherLine: Line;
-    public intersection_result: boolean;
+    public intersection_result: IntersectionResult;
 
-    constructor(selfLine, otherLine, intersection_result) {
+    constructor(selfLine: Line, otherLine: Line, intersection_result: IntersectionResult) {
         super();
         this.selfLine = selfLine;
         this.otherLine = otherLine;
@@ -387,10 +439,10 @@ class Ball extends PhysicalObject {
             this.lines = this.lines.push(new Line(startPosition, endPosition));
         }
     }
-    public updated(time_unit, game_set) {
-        const advanced_ball = super.updated(time_unit, game_set);
+    public updated(time_unit: number, game_set: GameSet) {
+        const advanced_ball = super.updated(time_unit, game_set) as Ball;
 
-        const advanced_ball_original_position = advanced_ball.copy({ position: this.position, angle: this.angle });
+        const advanced_ball_original_position = advanced_ball.copy({ position: this.position, angle: this.angle }) as Ball;
         return advanced_ball_original_position.collideAll(advanced_ball.position.subtract(this.position), advanced_ball.angle - this.angle, game_set);
     }
     public collide_ground(collision, game_set) {
@@ -401,10 +453,10 @@ class Ball extends PhysicalObject {
         });
 
         return {
-            "game_set": game_set.replace_element(collided_self),
-            "collision": collision,
-            "delta_position": new Vector2D(0, 0),
-            "delta_angle": 0
+            game_set: game_set.replace_element(collided_self),
+            collision: collision,
+            delta_position: new Vector2D(0, 0),
+            delta_angle: 0,
         };
     }
     public draw(ctx) {
@@ -473,23 +525,23 @@ class Car extends PhysicalObject {
         this.nitro = new Vector2D(-20 / f, 0);
         this.jumper = new Vector2D(0, 14 / f);
     }
-    public updated(time_unit, game_set) {
-        const advanced_car_gravity = super.updated(time_unit, game_set);
+    public updated(time_unit: number, game_set: GameSet) {
+        const advanced_car_gravity = super.updated(time_unit, game_set) as Car;
 
-        const jumped_car = key_pressed["jump"] ?
+        const jumped_car = key_pressed.get("jump") ?
             (this.jump_state == "station" ?
                 advanced_car_gravity.copy({ flying_state: "flying", jump_state: "jumping" }) :
-                advanced_car_gravity) :
+                advanced_car_gravity) as Car :
             (this.jump_state == "station" ?
                 advanced_car_gravity :
-                advanced_car_gravity.copy({ jump_state: "station" }));
+                advanced_car_gravity.copy({ jump_state: "station" })) as Car;
 
         const car_jumping = this.jump_state == "station" && jumped_car.jump_state == "jumping";
         const car_flying = this.flying_state == "flying";
 
-        const nitroVector = this.nitro.normalize().multiply(key_pressed["up"]).rotate(this.angle).reverse().multiply(30);
+        const nitroVector = this.nitro.normalize().multiply(key_pressed.get("up")).rotate(this.angle).reverse().multiply(30);
         const jumpVector = this.jumper.normalize().multiply(car_jumping ? 1 : 0).rotate(this.angle).reverse().multiply(10);
-        const angularForce = (key_pressed["left"] * -1 + key_pressed["right"]) * (car_flying ? 1 : 0);
+        const angularForce = (key_pressed.get("left") * -1 + key_pressed.get("right")) * (car_flying ? 1 : 0);
 
         const advanced_car = jumped_car.copy({
             velocity: jumped_car.velocity.addVector(nitroVector.multiply(time_unit * 1.0 / 1000)).addVector(jumpVector),
@@ -499,7 +551,7 @@ class Car extends PhysicalObject {
         const advanced_car_original_position = advanced_car.copy({ position: this.position, angle: this.angle });
         return advanced_car_original_position.collideAll(advanced_car.position.subtract(this.position), advanced_car.angle - this.angle, game_set);
     }
-    public collide_ground(collision, game_set) {
+    public collide_ground(collision: Collision, game_set: GameSet) {
         const elasticity = 0.6;
         const collision_angle = collision.otherLine.collision_direction.angle();
         let collided_self = null;
@@ -517,13 +569,13 @@ class Car extends PhysicalObject {
         }
 
         return {
-            "game_set": game_set.replace_element(collided_self),
-            "collision": collision,
-            "delta_position": new Vector2D(0, 0),
-            "delta_angle": 0
+            game_set: game_set.replace_element(collided_self),
+            collision: collision,
+            delta_position: new Vector2D(0, 0),
+            delta_angle: 0,
         };
     }
-    public draw(ctx) {
+    public draw(ctx: CanvasRenderingContext2D) {
         const f = 3;
         ctx.save();
         if (debugging) {
@@ -543,11 +595,11 @@ class Car extends PhysicalObject {
             ctx.arc(drawing_scale * rotatedJumperPosition.x, drawing_scale * rotatedJumperPosition.y, 6, 0, 2 * Math.PI);
             ctx.fill();
         } else {
-            const line_to = (x, y) => {
+            const line_to = (x: number, y: number) => {
                 const vector = this.position.addVector((new Vector2D(x / f, y / f)).rotate(this.angle));
                 return ctx.lineTo(drawing_scale * vector.x, drawing_scale * vector.y);
             }
-            const move_to = (x, y) => {
+            const move_to = (x: number, y: number) => {
                 const vector = this.position.addVector((new Vector2D(x / f, y / f)).rotate(this.angle));
                 return ctx.moveTo(drawing_scale * vector.x, drawing_scale * vector.y);
             }
@@ -660,7 +712,7 @@ class Ground extends PhysicalObject {
     public collisionDirection() {
         return new Vector2D(0, -1);
     }
-    public updated(time_unit, game_set) {
+    public updated(_: number, game_set: GameSet) {
         return game_set;
     }
 }
@@ -682,27 +734,27 @@ class GameSet extends Entity {
         ]);
         this.ground_id = ground.id;
     }
-    public updated(time_unit) {
-        const updatedRec = (game_set, remaining) => {
+    public updated(time_unit: number) {
+        const updatedRec = (game_set: GameSet, remaining: Immutable.List<number>) => {
             if (remaining.size == 0) return game_set;
 
             const first_key = remaining.first();
             const first_object = game_set.contents.get(first_key);
 
-            const new_game_set = first_object.updated(time_unit, game_set);
+            const new_game_set = first_object.updated(time_unit, game_set) as GameSet;
             return updatedRec(new_game_set, remaining.shift());
         }
 
         return updatedRec(this, this.contents.keySeq().filter(o => o != this.ground_id).toList());
         // return this.copy({my_car: this.my_car.updated(time_unit, this), ball: this.ball.updated(time_unit, this)});
     }
-    public draw(ctx) {
+    public draw(ctx: CanvasRenderingContext2D) {
         this.contents.valueSeq().forEach((o: PhysicalObject) => o.draw(ctx));
         // this.my_car.draw(ctx);
         // this.ball.draw(ctx);
         // this.ground.draw(ctx);
     }
-    public replace_element(element) {
+    public replace_element(element: Entity): GameSet {
         return this.copy({ "contents": this.contents.set(element.id, element) });
     }
 }

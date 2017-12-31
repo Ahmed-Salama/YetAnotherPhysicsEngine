@@ -329,7 +329,7 @@ class PhysicalObject extends Entity {
     public collideAll(delta_position: Vector2D, delta_angle: number, game_set: GameSet): GameSet {
         const self = this;
         const collidedRec = (delta_position_rec: Vector2D, delta_angle_rec: number,
-                             game_set_rec: GameSet, remaining: Immutable.List<number>) => {
+                             game_set_rec: GameSet, remaining: Immutable.List<number>): GameSet => {
             if (remaining.size == 0) {
                 const updated_self = game_set_rec.contents.get(self.id);
                 return game_set_rec.replace_element(updated_self.move(delta_position_rec).rotate(delta_angle_rec));
@@ -440,12 +440,12 @@ class Ball extends PhysicalObject {
         }
     }
     public updated(time_unit: number, game_set: GameSet) {
-        const advanced_ball = super.updated(time_unit, game_set) as Ball;
+        const advanced_ball: Ball = super.updated(time_unit, game_set) as Ball;
 
-        const advanced_ball_original_position = advanced_ball.copy({ position: this.position, angle: this.angle }) as Ball;
+        const advanced_ball_original_position: Ball = advanced_ball.copy({ position: this.position, angle: this.angle }) as Ball;
         return advanced_ball_original_position.collideAll(advanced_ball.position.subtract(this.position), advanced_ball.angle - this.angle, game_set);
     }
-    public collide_ground(collision, game_set) {
+    public collide_ground(collision: Collision, game_set: GameSet) {
         const elasticity = 0.8;
         const collided_self = this.copy({
             velocity: this.velocity.reverseDirection(collision.otherLine.collision_direction).multiply(elasticity),
@@ -459,13 +459,13 @@ class Ball extends PhysicalObject {
             delta_angle: 0,
         };
     }
-    public draw(ctx) {
+    public draw(ctx: CanvasRenderingContext2D) {
         ctx.save();
         if (debugging) {
             ctx.strokeStyle = "blue";
             super.draw(ctx);
         } else {
-            const draw_circle = (radius_scale, color) => {
+            const draw_circle = (radius_scale: number, color: string) => {
                 ctx.fillStyle = color;
                 let first = true;
                 const self = this;
@@ -526,15 +526,15 @@ class Car extends PhysicalObject {
         this.jumper = new Vector2D(0, 14 / f);
     }
     public updated(time_unit: number, game_set: GameSet) {
-        const advanced_car_gravity = super.updated(time_unit, game_set) as Car;
+        const advanced_car_gravity: Car = super.updated(time_unit, game_set) as Car;
 
-        const jumped_car = key_pressed.get("jump") ?
+        const jumped_car: Car = key_pressed.get("jump") ?
             (this.jump_state == "station" ?
                 advanced_car_gravity.copy({ flying_state: "flying", jump_state: "jumping" }) :
-                advanced_car_gravity) as Car :
+                advanced_car_gravity) :
             (this.jump_state == "station" ?
                 advanced_car_gravity :
-                advanced_car_gravity.copy({ jump_state: "station" })) as Car;
+                advanced_car_gravity.copy({ jump_state: "station" }));
 
         const car_jumping = this.jump_state == "station" && jumped_car.jump_state == "jumping";
         const car_flying = this.flying_state == "flying";
@@ -543,7 +543,7 @@ class Car extends PhysicalObject {
         const jumpVector = this.jumper.normalize().multiply(car_jumping ? 1 : 0).rotate(this.angle).reverse().multiply(10);
         const angularForce = (key_pressed.get("left") * -1 + key_pressed.get("right")) * (car_flying ? 1 : 0);
 
-        const advanced_car = jumped_car.copy({
+        const advanced_car: Car = jumped_car.copy({
             velocity: jumped_car.velocity.addVector(nitroVector.multiply(time_unit * 1.0 / 1000)).addVector(jumpVector),
             angularVelocity: jumped_car.angularVelocity + angularForce * 0.0006
         });
@@ -551,10 +551,10 @@ class Car extends PhysicalObject {
         const advanced_car_original_position = advanced_car.copy({ position: this.position, angle: this.angle });
         return advanced_car_original_position.collideAll(advanced_car.position.subtract(this.position), advanced_car.angle - this.angle, game_set);
     }
-    public collide_ground(collision: Collision, game_set: GameSet) {
+    public collide_ground(collision: Collision, game_set: GameSet): CollisionResult {
         const elasticity = 0.6;
         const collision_angle = collision.otherLine.collision_direction.angle();
-        let collided_self = null;
+        let collided_self: Car = null;
         if (collision.selfLine.is_tire && false) {
             // collided_self = this.copy({
             //     velocity: this.velocity.rotate(collision_angle).resetX().rotate(-collision_angle),
@@ -671,7 +671,7 @@ class Car extends PhysicalObject {
             line_to(-5, -4);
             ctx.fill();
 
-            const draw_tire = (x, y) => {
+            const draw_tire = (x: number, y: number) => {
                 ctx.fillStyle = "gray";
                 let w1 = this.position.addVector((new Vector2D(x / f, y / f)).rotate(this.angle));
                 ctx.beginPath();
@@ -735,8 +735,9 @@ class GameSet extends Entity {
         this.ground_id = ground.id;
     }
     public updated(time_unit: number) {
-        const updatedRec = (game_set: GameSet, remaining: Immutable.List<number>) => {
-            if (remaining.size == 0) return game_set;
+        const updatedRec = (game_set: GameSet, remaining: Immutable.List<number>): GameSet => {
+            if (remaining.size == 0)
+                return game_set;
 
             const first_key = remaining.first();
             const first_object = game_set.contents.get(first_key);

@@ -92,7 +92,6 @@ $(document).ready(() => {
         .subscribe(e => key_pressed.set(e, 0));
 
     const canvas = document.getElementById("canvas") as HTMLCanvasElement;
-
     const ctx = canvas.getContext("2d");
 
     const $time = Rx.Observable.interval(10 * slow_down)
@@ -115,7 +114,7 @@ class Entity {
     public id: number;
     public name: string;
 
-    constructor(initialize: boolean = false) {
+    constructor(initialize = false) {
         this.id = Math.random();
         if (initialize) {
             this.initialize();
@@ -208,18 +207,11 @@ class Vector2D extends Entity {
 class Line extends Entity {
     public startPosition: Vector2D;
     public endPosition: Vector2D;
-    public collision_direction: Vector2D;
-    public is_ground: boolean;
-    public is_tire: boolean;
 
-    constructor(startPosition: Vector2D, endPosition: Vector2D, collision_direction?: Vector2D,
-                               is_ground?: boolean, is_tire?: boolean) {
+    constructor(startPosition: Vector2D, endPosition: Vector2D) {
         super();
         this.startPosition = startPosition;
         this.endPosition = endPosition;
-        this.collision_direction = collision_direction;
-        this.is_ground = is_ground;
-        this.is_tire = is_tire;
     }
     public offset(vector: Vector2D): Line {
         return this.copy({ startPosition: this.startPosition.addVector(vector), endPosition: this.endPosition.addVector(vector) });
@@ -245,6 +237,7 @@ class PhysicalObject extends Entity {
     public mass: number;
     public moment_of_inertia: number;
     public center_of_mass: Vector2D;
+    public is_ground: boolean;
     public lines: Immutable.List<Line>;
 
     constructor(initialize: boolean) {
@@ -303,7 +296,7 @@ class PhysicalObject extends Entity {
             ctx.restore();
         });
 
-        if (this.name != "ground") {
+        if (!this.is_ground) {
             var toDrawCenterOfMass = self.position.addVector(self.center_of_mass.rotate(self.angle));
             ctx.beginPath();
             ctx.strokeStyle = "black";
@@ -379,7 +372,7 @@ class PhysicalObject extends Entity {
         const elasticity = 0.7;
         const impulse_weight = 1.0 / collision.intersections.size;
 
-        if (other.name == "ground") {
+        if (other.is_ground) {
             const collide_rec = (delta_v_a: Vector2D, delta_w_a: number, remaining_intersections: Immutable.List<Intersection>): any => {
                 if (remaining_intersections.size == 0) return {"d_v_a": delta_v_a, "d_w_a": delta_w_a};
     
@@ -482,14 +475,13 @@ class GameElement extends PhysicalObject {
         throw new Error('Unsupported method');
     }
 }
-class Intersection extends Entity {
+class Intersection {
     public self_line: Line;
     public other_line: Line;
     public intersection_exists: boolean;
     public intersection_point: Vector2D;
     
     constructor(sl: Line, ol: Line, intersection_exists: boolean, intersection_point: Vector2D) {
-        super();
         this.self_line = sl;
         this.other_line = ol;
         this.intersection_exists = intersection_exists;
@@ -603,7 +595,7 @@ class Car extends GameElement {
             const j = (i + 1) % points.length;
             const p1 = points[i];
             const p2 = points[j];
-            this.lines = this.lines.push(new Line(new Vector2D(p1[0] / f, p1[1] / f), new Vector2D(p2[0] / f, p2[1] / f), null, false, tire[i]));
+            this.lines = this.lines.push(new Line(new Vector2D(p1[0] / f, p1[1] / f), new Vector2D(p2[0] / f, p2[1] / f)));
         }
 
         this.nitro = new Vector2D(-20 / f, 0);
@@ -767,14 +759,15 @@ class Ground extends GameElement {
     protected define_attributes() {
         super.define_attributes();
         this.name = "ground";
+        this.is_ground = true;
         this.position = new Vector2D(0, 0);
     }
     protected build_lines() {
         super.build_lines()
         this.lines = Immutable.List([
-            new Line(new Vector2D(200, 100), new Vector2D(0, 100), new Vector2D(0, -1), true),
-            new Line(new Vector2D(0, 100), new Vector2D(0, 0), new Vector2D(1, 0), true),
-            new Line(new Vector2D(200, 0), new Vector2D(200, 100), new Vector2D(-1, 0), true)]);
+            new Line(new Vector2D(200, 100), new Vector2D(0, 100)),
+            new Line(new Vector2D(0, 100), new Vector2D(0, 0)),
+            new Line(new Vector2D(200, 0), new Vector2D(200, 100))]);
     }
     public collisionDirection() {
         return new Vector2D(0, -1);
@@ -786,7 +779,6 @@ class Ground extends GameElement {
 
 class GameSet extends Entity {
     public contents: Immutable.Map<number, Entity>;
-    public ground_id: number;
 
     constructor(initialize: boolean) {
         super(initialize);
@@ -803,7 +795,6 @@ class GameSet extends Entity {
             [ground.id, ground],
             [ball.id, ball],
         ]);
-        this.ground_id = ground.id;
     }
     public updated(time_unit: number) {
         const updatedRec = (game_set: GameSet, remaining: Immutable.List<number>): GameSet => {
@@ -817,7 +808,7 @@ class GameSet extends Entity {
             return updatedRec(new_game_set, remaining.shift());
         }
 
-        return updatedRec(this, this.contents.keySeq().filter(o => o != this.ground_id).toList());
+        return updatedRec(this, this.contents.entrySeq().filter(([k, v]) => !v.is_ground).map(([k, v]) => k).toList());
     }
     public draw(ctx: CanvasRenderingContext2D) {
         this.contents.valueSeq().forEach((o: GameElement) => o.draw(ctx));

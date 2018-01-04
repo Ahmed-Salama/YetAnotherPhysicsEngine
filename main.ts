@@ -53,20 +53,20 @@ function is_intersecting(l1: Line, l2: Line): Intersection {
 }
 
 function on_segment(line: Line, x: number, y: number) {
-    const X1 = line.startPosition.x;
-    const X2 = line.endPosition.x;
-    const Y1 = line.startPosition.y;
-    const Y2 = line.endPosition.y;
+    const X1 = line.start_position.x;
+    const X2 = line.end_position.x;
+    const Y1 = line.start_position.y;
+    const Y2 = line.end_position.y;
 
     return Math.min(X1, X2) <= x && x <= Math.max(X1, X2) &&
            Math.min(Y1, Y2) <= y && y <= Math.max(Y1, Y2);
 }
 
 function get_line_constants(line: Line) {
-    const X1 = line.startPosition.x;
-    const X2 = line.endPosition.x;
-    const Y1 = line.startPosition.y;
-    const Y2 = line.endPosition.y;
+    const X1 = line.start_position.x;
+    const X2 = line.end_position.x;
+    const Y1 = line.start_position.y;
+    const Y2 = line.end_position.y;
 
     const A = Y2 - Y1;
     const B = X1 - X2;
@@ -137,15 +137,17 @@ class Vector2D extends Entity {
     public x: number;
     public y: number;
 
+    static empty: Vector2D = new Vector2D(0, 0);
+
     constructor(ox: number, oy: number) {
         super();
         this.x = ox;
         this.y = oy
     }
-    public addDelta(dx: number, dy: number): Vector2D {
+    public add_delta(dx: number, dy: number): Vector2D {
         return this.copy({ x: this.x + dx, y: this.y + dy });
     }
-    public addVector(vector: Vector2D): Vector2D {
+    public add_vector(vector: Vector2D): Vector2D {
         return this.copy({ x: this.x + vector.x, y: this.y + vector.y });
     }
     public multiply(value: number): Vector2D {
@@ -181,10 +183,6 @@ class Vector2D extends Entity {
 
         return new Vector2D(length * Math.cos(newAngle), length * Math.sin(newAngle));
     }
-    public reverseDirection(vector: Vector2D) {
-        const angle2 = Math.atan2(vector.y, vector.x);
-        return this.rotate(-angle2).flipX().rotate(angle2);
-    }
     public to(vector: Vector2D) {
         return new Vector2D(vector.x - this.x, vector.y - this.y);
     }
@@ -205,22 +203,22 @@ class Vector2D extends Entity {
     }
 }
 class Line extends Entity {
-    public startPosition: Vector2D;
-    public endPosition: Vector2D;
+    public start_position: Vector2D;
+    public end_position: Vector2D;
 
-    constructor(startPosition: Vector2D, endPosition: Vector2D) {
+    constructor(start_position: Vector2D, end_position: Vector2D) {
         super();
-        this.startPosition = startPosition;
-        this.endPosition = endPosition;
+        this.start_position = start_position;
+        this.end_position = end_position;
     }
     public offset(vector: Vector2D): Line {
-        return this.copy({ startPosition: this.startPosition.addVector(vector), endPosition: this.endPosition.addVector(vector) });
+        return this.copy({ start_position: this.start_position.add_vector(vector), end_position: this.end_position.add_vector(vector) });
     }
     public rotate(angle: number): Line {
-        return this.copy({ startPosition: this.startPosition.rotate(angle), endPosition: this.endPosition.rotate(angle) });
+        return this.copy({ start_position: this.start_position.rotate(angle), end_position: this.end_position.rotate(angle) });
     }
     public normal(): Vector2D {
-        return this.startPosition.to(this.endPosition).rotate(Math.PI / 2).normalize();
+        return this.start_position.to(this.end_position).rotate(Math.PI / 2).normalize();
     }
 }
 interface CollisionResult {
@@ -233,7 +231,7 @@ class PhysicalObject extends Entity {
     public position: Vector2D;
     public velocity: Vector2D;
     public angle: number;
-    public angularVelocity: number;
+    public angular_velocity: number;
     public mass: number;
     public moment_of_inertia: number;
     public center_of_mass: Vector2D;
@@ -244,77 +242,78 @@ class PhysicalObject extends Entity {
         super(initialize);
     }
     protected initialize() {
-        this.define_attributes();
-        this.build_lines();
+        this._define_attributes();
+        this._build_lines();
         
         const contribution_ratio = 1.0 / (2 * this.lines.size);
-        this.moment_of_inertia = this.mass * this.lines.reduce((acc, line) => acc + contribution_ratio * (Math.pow(line.startPosition.length(), 2) + Math.pow(line.endPosition.length(), 2)), 0);
-        this.center_of_mass = this.lines.reduce((com, line) => com.addVector(line.startPosition.multiply(contribution_ratio)).addVector(line.endPosition.multiply(contribution_ratio)), new Vector2D(0, 0));
+        this.moment_of_inertia = this.mass * this.lines.reduce((acc, line) => acc + contribution_ratio * (Math.pow(line.start_position.length(), 2) + Math.pow(line.end_position.length(), 2)), 0);
+        this.center_of_mass = this.lines.reduce((com, line) => com.add_vector(line.start_position.multiply(contribution_ratio)).add_vector(line.end_position.multiply(contribution_ratio)), Vector2D.empty);
     }
-    protected define_attributes() {
+    protected _define_attributes() {
         this.position = new Vector2D(10, 20);
         this.velocity = new Vector2D(2, 0);
         this.angle = 0;
-        this.angularVelocity = 0;
+        this.angular_velocity = 0;
         this.mass = 1;
     }
-    protected build_lines() {
+    protected _build_lines() {
         this.lines = Immutable.List();
     }
     public updated(time_unit: number): PhysicalObject {
-        const gravityVector = new Vector2D(0, 9.8);
+        const gravity_vector = new Vector2D(0, 9.8);
         const velocity_air_drag_vector = this.velocity.multiply(0.3 * time_unit / 1000).reverse();
-        const angular_velocity_air_drag = this.angularVelocity * -0.4 * time_unit / 1000;
+        const angular_velocity_air_drag = this.angular_velocity * -0.4 * time_unit / 1000;
 
         return this.copy({
-            position: this.position.addVector(this.velocity.multiply(time_unit * 1.0 / 1000)),
-            velocity: this.velocity.addVector(gravityVector.multiply(time_unit * 1.0 / 1000)).addVector(velocity_air_drag_vector),
-            angle: this.angle + this.angularVelocity * time_unit * 1.0 / 1000,
-            angularVelocity: this.angularVelocity + angular_velocity_air_drag});
+            position: this.position.add_vector(this.velocity.multiply(time_unit * 1.0 / 1000)),
+            velocity: this.velocity.add_vector(gravity_vector.multiply(time_unit * 1.0 / 1000)).add_vector(velocity_air_drag_vector),
+            angle: this.angle + this.angular_velocity * time_unit * 1.0 / 1000,
+            angular_velocity: this.angular_velocity + angular_velocity_air_drag});
     }
+    protected _translate(vector: Vector2D) {
+        return this.position.add_vector(vector.rotate(this.angle));
+    }
+    protected _stroke_line(start: Vector2D, end: Vector2D, color: string, ctx: CanvasRenderingContext2D) {
+        ctx.save();
+        ctx.strokeStyle = color;
+        ctx.beginPath();
+        const to_draw_start_position = this._translate(start);
+        const to_draw_end_position = this._translate(end);
+        ctx.moveTo(drawing_scale * to_draw_start_position.x, drawing_scale * to_draw_start_position.y);
+        ctx.lineTo(drawing_scale * to_draw_end_position.x, drawing_scale * to_draw_end_position.y);
+        ctx.stroke();
+        ctx.restore();
+    }
+    protected _draw_circle(center: Vector2D, f: number, radius: number, color: string, ctx: CanvasRenderingContext2D) {
+        ctx.save();
+        ctx.fillStyle = color;
+        let to_draw_center = this._translate(center.multiply(1.0/f));
+        ctx.beginPath();
+        ctx.arc(drawing_scale * to_draw_center.x, drawing_scale * to_draw_center.y, radius, 0, 2 * Math.PI);
+        ctx.fill();
+        ctx.restore();
+    };
     public draw(ctx: CanvasRenderingContext2D) {
         ctx.save();
         
         const self = this;
         this.lines.forEach(line => {
-            ctx.save();
-            ctx.beginPath();
-            const toDrawStartPosition = self.position.addVector(line.startPosition.rotate(self.angle));
-            const toDrawEndPosition = self.position.addVector(line.endPosition.rotate(self.angle));
-            ctx.moveTo(drawing_scale * toDrawStartPosition.x, drawing_scale * toDrawStartPosition.y);
-            ctx.lineTo(drawing_scale * toDrawEndPosition.x, drawing_scale * toDrawEndPosition.y);
-            ctx.stroke();
+            self._stroke_line(line.start_position, line.end_position, "black", ctx);
 
-            ctx.beginPath();
-            var start_to_end_vector = line.startPosition.to(line.endPosition);
+            var start_to_end_vector = line.start_position.to(line.end_position);
             var mid_point = start_to_end_vector.normalize().multiply(start_to_end_vector.length() / 2);
-            var normal_start_position = self.position.addVector(line.startPosition.addVector(mid_point).rotate(self.angle));
-            var normal_end_position = self.position.addVector(line.startPosition.addVector(mid_point).addVector(line.normal()).rotate(self.angle));
-            ctx.moveTo(drawing_scale * normal_start_position.x, drawing_scale * normal_start_position.y);
-            ctx.lineTo(drawing_scale * normal_end_position.x, drawing_scale * normal_end_position.y);
-            ctx.stroke();
-            ctx.restore();
+            var normal_start_position = line.start_position.add_vector(mid_point);
+            var normal_end_position = line.start_position.add_vector(mid_point).add_vector(line.normal());
+            self._stroke_line(normal_start_position, normal_end_position, "black", ctx);
         });
 
         if (!this.is_ground) {
-            var toDrawCenterOfMass = self.position.addVector(self.center_of_mass.rotate(self.angle));
-            ctx.beginPath();
-            ctx.strokeStyle = "black";
-            ctx.arc(drawing_scale * toDrawCenterOfMass.x, drawing_scale * toDrawCenterOfMass.y, 2, 0, 2 * Math.PI);
-            ctx.stroke();
+            this._draw_circle(this.center_of_mass, 1, 2, "black", ctx);
         }
 
-        ctx.beginPath();
-        ctx.strokeStyle = "green";
-        ctx.moveTo(drawing_scale * (self.position.x), drawing_scale * (self.position.y));
-        ctx.lineTo(drawing_scale * (self.position.x + self.velocity.x), drawing_scale * (self.position.y + self.velocity.y));
-        ctx.stroke();
+        this._stroke_line(Vector2D.empty, this.velocity, "green", ctx);
+        this._stroke_line(Vector2D.empty, new Vector2D(8 * this.angular_velocity, 0), "orange", ctx);
 
-        ctx.beginPath();
-        ctx.strokeStyle = "orange";
-        ctx.moveTo(drawing_scale * (self.position.x), drawing_scale * (self.position.y));
-        ctx.lineTo(drawing_scale * (self.position.x + 8 * self.angularVelocity), drawing_scale * (self.position.y));
-        ctx.stroke();
         ctx.restore();
     }
     public calculate_collision(other: PhysicalObject) {
@@ -380,12 +379,12 @@ class PhysicalObject extends Entity {
                 const intersection_point = first_intersection.intersection_point;
         
                 const normal = first_intersection.other_line.normal(); 
-                const r_ap = advanced_self.position.addVector(advanced_self.center_of_mass).to(intersection_point);
+                const r_ap = advanced_self.position.add_vector(advanced_self.center_of_mass).to(intersection_point);
 
                 const v_a1 = advanced_self.velocity;
-                const w_a1 = advanced_self.angularVelocity;
+                const w_a1 = advanced_self.angular_velocity;
 
-                var v_ap1 = v_a1.addVector(r_ap.crossW(w_a1));
+                var v_ap1 = v_a1.add_vector(r_ap.crossW(w_a1));
 
                 var m_a = advanced_self.mass;
                 var i_a = advanced_self.moment_of_inertia;
@@ -395,13 +394,13 @@ class PhysicalObject extends Entity {
                 var d_v_a = normal.multiply(impulse / m_a);
                 var d_w_a = r_ap.cross(normal.multiply(impulse)) / i_a;
 
-                return collide_rec(delta_v_a.addVector(d_v_a), delta_w_a + d_w_a, remaining_intersections.shift());
+                return collide_rec(delta_v_a.add_vector(d_v_a), delta_w_a + d_w_a, remaining_intersections.shift());
             }
 
-            var delta = collide_rec(new Vector2D(0, 0), 0, collision.intersections);
+            var delta = collide_rec(Vector2D.empty, 0, collision.intersections);
 
-            return {"game_set": game_set.replace_element(this.copy({velocity: this.velocity.addVector(delta.d_v_a), angularVelocity: this.angularVelocity + delta.d_w_a})),
-                    "delta_position": new Vector2D(0, 0),
+            return {"game_set": game_set.replace_element(this.copy({velocity: this.velocity.add_vector(delta.d_v_a), angular_velocity: this.angular_velocity + delta.d_w_a})),
+                    "delta_position": Vector2D.empty,
                     "delta_angle": 0};
         } else {
             var collide_rec = (delta_v_a: Vector2D, delta_w_a: number, delta_v_b: Vector2D, delta_w_b: number, remaining_intersections: Immutable.List<Intersection>): any => {
@@ -415,14 +414,14 @@ class PhysicalObject extends Entity {
                 var v_a1 = advanced_self.velocity;
                 var v_b1 = other.velocity;
 
-                var r_ap = advanced_self.position.addVector(advanced_self.center_of_mass).to(intersection_point);
-                var r_bp = other.position.addVector(advanced_self.center_of_mass).to(intersection_point);
+                var r_ap = advanced_self.position.add_vector(advanced_self.center_of_mass).to(intersection_point);
+                var r_bp = other.position.add_vector(advanced_self.center_of_mass).to(intersection_point);
 
-                var w_a1 = advanced_self.angularVelocity;
-                var w_b1 = other.angularVelocity;
+                var w_a1 = advanced_self.angular_velocity;
+                var w_b1 = other.angular_velocity;
 
-                var v_ap1 = v_a1.addVector(r_ap.crossW(w_a1));
-                var v_bp1 = v_b1.addVector(r_bp.crossW(w_b1));
+                var v_ap1 = v_a1.add_vector(r_ap.crossW(w_a1));
+                var v_bp1 = v_b1.add_vector(r_bp.crossW(w_b1));
 
                 var v_ab1 = v_ap1.subtract(v_bp1);
 
@@ -447,32 +446,24 @@ class PhysicalObject extends Entity {
                 var d_w_a = r_ap.cross(normal.multiply(impulse)) / i_a;
                 var d_w_b = -r_bp.cross(normal.multiply(impulse)) / i_b;
 
-                return collide_rec(delta_v_a.addVector(d_v_a), delta_w_a + d_w_a, delta_v_b.addVector(d_v_b), delta_w_b + d_w_b, remaining_intersections.shift());
+                return collide_rec(delta_v_a.add_vector(d_v_a), delta_w_a + d_w_a, delta_v_b.add_vector(d_v_b), delta_w_b + d_w_b, remaining_intersections.shift());
             }
 
-            var delta = collide_rec(new Vector2D(0, 0), 0, new Vector2D(0, 0), 0, collision.intersections);
+            var delta = collide_rec(Vector2D.empty, 0, Vector2D.empty, 0, collision.intersections);
 
-            var updated_self = this.copy({velocity: this.velocity.addVector(delta.d_v_a), angularVelocity: this.angularVelocity + delta.d_w_a});
-            var updated_other = other.copy({velocity: other.velocity.addVector(delta.d_v_b), angularVelocity: other.angularVelocity + delta.d_w_b});
+            var updated_self = this.copy({velocity: this.velocity.add_vector(delta.d_v_a), angular_velocity: this.angular_velocity + delta.d_w_a});
+            var updated_other = other.copy({velocity: other.velocity.add_vector(delta.d_v_b), angular_velocity: other.angular_velocity + delta.d_w_b});
 
             return {"game_set": game_set.replace_element(updated_self).replace_element(updated_other),
-                    "delta_position": new Vector2D(0, 0),
+                    "delta_position": Vector2D.empty,
                     "delta_angle": 0};
         }
     }
     public move(vector: Vector2D): PhysicalObject {
-        return this.copy({ position: this.position.addVector(vector) });
+        return this.copy({ position: this.position.add_vector(vector) });
     }
     public rotate(delta_angle: number): PhysicalObject {
         return this.copy({ angle: this.angle + delta_angle });
-    }
-}
-class GameElement extends PhysicalObject {
-    constructor(initialize: boolean) {
-        super(initialize);
-    }
-    public update_game_set(time_unit: number, game_set: GameSet): GameSet {
-        throw new Error('Unsupported method');
     }
 }
 class Intersection {
@@ -499,30 +490,38 @@ class Collision extends Entity {
         return this.intersections.size > 0;
     }
 }
+class GameElement extends PhysicalObject {
+    constructor(initialize: boolean) {
+        super(initialize);
+    }
+    public update_game_set(time_unit: number, game_set: GameSet): GameSet {
+        throw new Error('Unsupported method');
+    }
+}
 class Ball extends GameElement {
     public radius: number;
 
     constructor(initialize: boolean) {
         super(initialize);
     }
-    protected define_attributes() {
-        super.define_attributes();
+    protected _define_attributes() {
+        super._define_attributes();
         this.radius = 10;
         this.position = new Vector2D(60, 20);
         this.velocity = new Vector2D(10, 0);
         this.mass = 4;
         this.name = "ball";
     }
-    protected build_lines() {
-        super.build_lines();
+    protected _build_lines() {
+        super._build_lines();
         const samples = 24;
         for (var s = 0; s < samples; s++) {
             var angle1 = -s * 2 * Math.PI / samples;
             var angle2 = -(s + 1) * 2 * Math.PI / samples;
 
-            var startPosition = new Vector2D(this.radius * Math.cos(angle1), this.radius * Math.sin(angle1));
-            var endPosition = new Vector2D(this.radius * Math.cos(angle2), this.radius * Math.sin(angle2));
-            this.lines = this.lines.push(new Line(startPosition, endPosition));
+            var start_position = new Vector2D(this.radius * Math.cos(angle1), this.radius * Math.sin(angle1));
+            var end_position = new Vector2D(this.radius * Math.cos(angle2), this.radius * Math.sin(angle2));
+            this.lines = this.lines.push(new Line(start_position, end_position));
         }
     }
     public update_game_set(time_unit: number, game_set: GameSet): GameSet {
@@ -537,28 +536,11 @@ class Ball extends GameElement {
             ctx.strokeStyle = "blue";
             super.draw(ctx);
         } else {
-            const draw_circle = (radius_scale: number, color: string) => {
-                ctx.fillStyle = color;
-                let first = true;
-                const self = this;
-
-                ctx.beginPath();
-                this.lines.forEach(line => {
-                    const toDrawStartPosition = self.position.addVector(line.startPosition.multiply(radius_scale).rotate(self.angle));
-                    const toDrawEndPosition = self.position.addVector(line.endPosition.multiply(radius_scale).rotate(self.angle));
-                    if (first) {
-                        first = false;
-                        ctx.moveTo(drawing_scale * toDrawStartPosition.x, drawing_scale * toDrawStartPosition.y);
-                    }
-                    ctx.lineTo(drawing_scale * toDrawEndPosition.x, drawing_scale * toDrawEndPosition.y);
-                });
-                ctx.fill();
-            }
-            draw_circle(1, "#21618C");
-            draw_circle(0.9, "#3498DB");
-            draw_circle(0.8, "#5DADE2");
-            draw_circle(0.6, "#85C1E9");
-            draw_circle(0.2, "#AED6F1");
+            this._draw_circle(Vector2D.empty, 1, drawing_scale * this.radius, "#21618C", ctx);
+            this._draw_circle(Vector2D.empty, 1, drawing_scale * 0.9 * this.radius, "#3498DB", ctx);
+            this._draw_circle(Vector2D.empty, 1, drawing_scale * 0.8 * this.radius, "#5DADE2", ctx);
+            this._draw_circle(Vector2D.empty, 1, drawing_scale * 0.6 * this.radius, "#85C1E9", ctx);
+            this._draw_circle(Vector2D.empty, 1, drawing_scale * 0.2 * this.radius, "#AED6F1", ctx);
         }
         ctx.restore();
     }
@@ -573,18 +555,18 @@ class Car extends GameElement {
     constructor(initialize: boolean) {
         super(initialize);
     }
-    protected define_attributes() {
-        super.define_attributes();
+    protected _define_attributes() {
+        super._define_attributes();
         this.position = new Vector2D(60, 65);
         this.velocity = new Vector2D(0, -10);
-        this.angularVelocity = 0;
+        this.angular_velocity = 0;
         this.mass = 40;
         this.flying_state = "flying";
         this.jump_state = "station";
         this.name = "car";
     }
-    protected build_lines() {
-        super.build_lines();
+    protected _build_lines() {
+        super._build_lines();
 
         const f = 3;
 
@@ -615,13 +597,13 @@ class Car extends GameElement {
         const car_jumping = this.jump_state == "station" && jumped_car.jump_state == "jumping";
         const car_flying = this.flying_state == "flying";
 
-        const nitroVector = this.nitro.normalize().multiply(key_pressed.get("up")).rotate(this.angle).reverse().multiply(20);
-        const jumpVector = this.jumper.normalize().multiply(car_jumping ? 1 : 0).rotate(this.angle).reverse().multiply(10);
-        const angularForce = (key_pressed.get("left") * -1 + key_pressed.get("right")) * (car_flying ? 4 : 0);
+        const nitro_vector = this.nitro.normalize().multiply(key_pressed.get("up")).rotate(this.angle).reverse().multiply(20);
+        const jump_vector = this.jumper.normalize().multiply(car_jumping ? 1 : 0).rotate(this.angle).reverse().multiply(10);
+        const angular_force = (key_pressed.get("left") * -1 + key_pressed.get("right")) * (car_flying ? 4 : 0);
 
         const advanced_car: Car = jumped_car.copy({
-            velocity: jumped_car.velocity.addVector(nitroVector.multiply(time_unit * 1.0 / 1000)).addVector(jumpVector),
-            angularVelocity: jumped_car.angularVelocity + angularForce * time_unit * 1.0 / 1000
+            velocity: jumped_car.velocity.add_vector(nitro_vector.multiply(time_unit * 1.0 / 1000)).add_vector(jump_vector),
+            angular_velocity: jumped_car.angular_velocity + angular_force * time_unit * 1.0 / 1000
         });
 
         const advanced_car_original_position = advanced_car.copy<Car>({ position: this.position, angle: this.angle });
@@ -629,119 +611,62 @@ class Car extends GameElement {
     }
     public draw(ctx: CanvasRenderingContext2D) {
         const f = 3;
+
         ctx.save();
         if (debugging) {
             ctx.strokeStyle = "red";
             super.draw(ctx);
 
-            ctx.fillStyle = "violet";
-            const rotatedNitroPosition = this.position.addVector(this.nitro.rotate(this.angle));
-            ctx.beginPath();
-            ctx.arc(drawing_scale * rotatedNitroPosition.x, drawing_scale * rotatedNitroPosition.y, 6, 0, 2 * Math.PI);
-            ctx.fill();
-
-
-            ctx.fillStyle = this.jump_state == "station" ? "yellow" : "orange";
-            const rotatedJumperPosition = this.position.addVector(this.jumper.rotate(this.angle));
-            ctx.beginPath();
-            ctx.arc(drawing_scale * rotatedJumperPosition.x, drawing_scale * rotatedJumperPosition.y, 6, 0, 2 * Math.PI);
-            ctx.fill();
+            this._draw_circle(this.nitro, 1, 6, "violet", ctx);
+            this._draw_circle(this.jumper, 1, 6, this.jump_state == "station" ? "yellow" : "orange", ctx);
         } else {
             const line_to = (x: number, y: number) => {
-                const vector = this.position.addVector((new Vector2D(x / f, y / f)).rotate(this.angle));
+                const vector = this._translate(new Vector2D(x / f, y / f));
                 return ctx.lineTo(drawing_scale * vector.x, drawing_scale * vector.y);
             }
             const move_to = (x: number, y: number) => {
-                const vector = this.position.addVector((new Vector2D(x / f, y / f)).rotate(this.angle));
+                const vector = this._translate(new Vector2D(x / f, y / f));
                 return ctx.moveTo(drawing_scale * vector.x, drawing_scale * vector.y);
             }
+            const draw_polygon = (points: number[][], color: string) => {
 
-            ctx.fillStyle = "black";
-            ctx.beginPath();
-            move_to(20, 7);
-            line_to(-16, -4);
-            line_to(-16, 6);
-            line_to(12, 8);
-            ctx.fill();
-
-            ctx.fillStyle = "#E67E22";
-            ctx.beginPath();
-            move_to(20, 7);
-            line_to(20, 3);
-            line_to(12, 0);
-            line_to(7, -4);
-            line_to(-2, -7);
-            line_to(-5, -3);
-            line_to(-18, -3);
-            line_to(-18, 1);
-            line_to(-8, 3);
-            line_to(-2, 9);
-            line_to(2, 9);
-            line_to(8, 5);
-            line_to(12, 4);
-            ctx.fill();
-
-            ctx.fillStyle = "#E67E22";
-            ctx.beginPath();
-            move_to(-12, -8);
-            line_to(-20, -10);
-            line_to(-20, -7);
-            line_to(-12, -7);
-            ctx.fill();
-
-            ctx.fillStyle = "gray";
-            ctx.beginPath();
-            move_to(-15, -7);
-            line_to(-17, -7);
-            line_to(-16, -4);
-            line_to(-14, -4);
-            ctx.fill();
-
-            ctx.fillStyle = "black";
-            ctx.beginPath();
-            move_to(-1, -5.5);
-            line_to(-3, -3.5);
-            line_to(5, -0.5);
-            line_to(9, -0.5);
-            line_to(6, -3.5);
-            ctx.fill();
-
-            ctx.fillStyle = "gray";
-            ctx.beginPath();
-            move_to(-2, -7);
-            line_to(-12, -6);
-            line_to(-14, -3);
-            line_to(-5, -3);
-            ctx.fill();
-
-
-            ctx.fillStyle = "#922B21";
-            ctx.beginPath();
-            move_to(-4, -6);
-            line_to(-10, -5);
-            line_to(-14, -4);
-            line_to(-5, -4);
-            ctx.fill();
-
-            const draw_tire = (x: number, y: number) => {
-                ctx.fillStyle = "gray";
-                let w1 = this.position.addVector((new Vector2D(x / f, y / f)).rotate(this.angle));
+                ctx.fillStyle = color;
                 ctx.beginPath();
-                ctx.arc(drawing_scale * w1.x, drawing_scale * w1.y, 11, 0, 2 * Math.PI);
-                ctx.fill();
-
-                ctx.fillStyle = "lightgray";
-                w1 = this.position.addVector((new Vector2D(x / f, y / f)).rotate(this.angle));
-                ctx.beginPath();
-                ctx.arc(drawing_scale * w1.x, drawing_scale * w1.y, 7, 0, 2 * Math.PI);
-                ctx.fill();
-
-                ctx.fillStyle = "black";
-                w1 = this.position.addVector((new Vector2D(x / f, y / f)).rotate(this.angle));
-                ctx.beginPath();
-                ctx.arc(drawing_scale * w1.x, drawing_scale * w1.y, 5, 0, 2 * Math.PI);
+                move_to(points[0][0], points[0][1]);
+                for (var i = 1; i < points.length; i++) {
+                    line_to(points[i][0], points[i][1]);
+                }
                 ctx.fill();
             }
+
+            draw_polygon([[20, 7], 
+                          [-16, -4], [-16, 6],
+                          [12, 8]],
+                        "black");
+
+            draw_polygon([[20, 7], [20, 3],
+                          [12, 0], [7, -4], [-2, -7], [-5, -3],
+                          [-18, -3], [-18, 1],
+                          [-8, 3], [-2, 9], [2, 9], [8, 5], [12, 4]],
+                         "#E67E22");
+
+            draw_polygon([[-12, -8],
+                          [-20, -10], [-20, -7],
+                          [-12, -7]], "#E67E22");
+
+            draw_polygon([[-15, -7], [-17, -7], [-16, -4], [-14, -4]], "gray");
+            draw_polygon([[-1, -5.5], [-3, -3.5], [5, -0.5], [-14, -4]], "gray");
+            draw_polygon([[-1, -5.5], [-3, -3.5], [5, -0.5], [9, -0.5], [6, -3.5]], "black");
+            
+            draw_polygon([[-2, -7], [-12, -6], [-14, -3], [-5, -3]], "gray");
+            draw_polygon([[-4, -6], [-10, -5], [-14, -4], [-5, -4]], "#922B21");
+
+            const draw_tire = (x: number, y: number) => {
+                this._draw_circle(new Vector2D(x, y), f, 11, "gray", ctx);
+                this._draw_circle(new Vector2D(x, y), f, 7, "lightgray", ctx);
+                this._draw_circle(new Vector2D(x, y), f, 5, "black", ctx);
+            }
+            
             draw_tire(-12, 8);
             draw_tire(12, 8);
         }
@@ -756,21 +681,19 @@ class Ground extends GameElement {
     constructor(initialize: boolean) {
         super(initialize);
     }
-    protected define_attributes() {
-        super.define_attributes();
+    protected _define_attributes() {
+        super._define_attributes();
         this.name = "ground";
         this.is_ground = true;
-        this.position = new Vector2D(0, 0);
+        this.position = Vector2D.empty;
     }
-    protected build_lines() {
-        super.build_lines()
+    protected _build_lines() {
+        super._build_lines()
         this.lines = Immutable.List([
             new Line(new Vector2D(200, 100), new Vector2D(0, 100)),
             new Line(new Vector2D(0, 100), new Vector2D(0, 0)),
-            new Line(new Vector2D(200, 0), new Vector2D(200, 100))]);
-    }
-    public collisionDirection() {
-        return new Vector2D(0, -1);
+            new Line(new Vector2D(200, 0), new Vector2D(200, 100)),
+            new Line(new Vector2D(0, 0), new Vector2D(200, 0))]);
     }
     public update_game_set(_: number, game_set: GameSet) {
         return game_set;
@@ -814,6 +737,6 @@ class GameSet extends Entity {
         this.contents.valueSeq().forEach((o: GameElement) => o.draw(ctx));
     }
     public replace_element(element: Entity): GameSet {
-        return this.copy({ "contents": this.contents.set(element.id, element) });
+        return this.copy({ contents: this.contents.set(element.id, element) });
     }
 }

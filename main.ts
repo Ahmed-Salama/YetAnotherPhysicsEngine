@@ -549,6 +549,7 @@ class Ball extends GameElement {
 class Car extends GameElement {
     public flying_state: string;
     public jump_state: string;
+    public nitro_state: string;
     public nitro: Vector2D;
     public jumper: Vector2D;
 
@@ -563,6 +564,7 @@ class Car extends GameElement {
         this.mass = 40;
         this.flying_state = "flying";
         this.jump_state = "station";
+        this.nitro_state = "idle";
         this.name = "car";
     }
     protected _build_lines() {
@@ -586,24 +588,27 @@ class Car extends GameElement {
     public update_game_set(time_unit: number, game_set: GameSet): GameSet{
         const advanced_car_gravity: Car = super.updated(time_unit) as Car;
 
-        const jumped_car: Car = key_pressed.get("jump") ?
+        const cat_after_nitro_input: Car = advanced_car_gravity.copy({ nitro_state: key_pressed.get("up") ? "active" : "idle" });
+        const car_after_jump_input: Car = key_pressed.get("jump") ?
             (this.jump_state == "station" ?
-                advanced_car_gravity.copy({ flying_state: "flying", jump_state: "jumping" }) :
-                advanced_car_gravity) :
+                cat_after_nitro_input.copy({ flying_state: "flying", jump_state: "jumping" }) :
+                cat_after_nitro_input) :
             (this.jump_state == "station" ?
-                advanced_car_gravity :
-                advanced_car_gravity.copy({ jump_state: "station" }));
+                cat_after_nitro_input :
+                cat_after_nitro_input.copy({ jump_state: "station" }));
+        const car_after_all_input = car_after_jump_input;
 
-        const car_jumping = this.jump_state == "station" && jumped_car.jump_state == "jumping";
-        const car_flying = this.flying_state == "flying";
+        const car_jumping = this.jump_state == "station" && car_after_all_input.jump_state == "jumping";
+        const car_flying = car_after_all_input.flying_state == "flying";
+        const nitro_active = car_after_all_input.nitro_state == "active";
 
-        const nitro_vector = this.nitro.normalize().multiply(key_pressed.get("up")).rotate(this.angle).reverse().multiply(20);
+        const nitro_vector = this.nitro.normalize().multiply(nitro_active ? 1 : 0).rotate(this.angle).reverse().multiply(20);
         const jump_vector = this.jumper.normalize().multiply(car_jumping ? 1 : 0).rotate(this.angle).reverse().multiply(10);
         const angular_force = (key_pressed.get("left") * -1 + key_pressed.get("right")) * (car_flying ? 4 : 0);
 
-        const advanced_car: Car = jumped_car.copy({
-            velocity: jumped_car.velocity.add_vector(nitro_vector.multiply(time_unit * 1.0 / 1000)).add_vector(jump_vector),
-            angular_velocity: jumped_car.angular_velocity + angular_force * time_unit * 1.0 / 1000
+        const advanced_car: Car = car_after_all_input.copy({
+            velocity: car_after_all_input.velocity.add_vector(nitro_vector.multiply(time_unit * 1.0 / 1000)).add_vector(jump_vector),
+            angular_velocity: car_after_all_input.angular_velocity + angular_force * time_unit * 1.0 / 1000
         });
 
         const advanced_car_original_position = advanced_car.copy<Car>({ position: this.position, angle: this.angle });
@@ -637,6 +642,13 @@ class Car extends GameElement {
                     line_to(points[i][0], points[i][1]);
                 }
                 ctx.fill();
+            }
+
+            // Nitro
+            if (this.nitro_state == "active") {
+                var random_extra_length = 4 * Math.random();
+                draw_polygon([[-10, -3], [-30 - random_extra_length, -1], [-30 - random_extra_length, 3], [-10, 4]], "#D35400");
+                draw_polygon([[-10, -2], [-25 - random_extra_length, 0], [-25 - random_extra_length, 2], [-10, 4]], "#F4D03F");
             }
 
             draw_polygon([[20, 7], 

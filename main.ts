@@ -18,15 +18,21 @@ const field_width = 20;
 const inner_field_width = field_width - 2;
 const field_height = 30;
 const drawing_scale = 6;
-const eps = 0.0000001;
+const eps = 0.1;
 let debugging = false;
 let paused = false;
-const slow_down = 1;
-const time_step = 22 * slow_down;
+const time_interval = 15;
+const time_step = 2.2 * time_interval;
+const general_elasticity = 0.8;
+const tire_elasticity = 0.55;
 
 interface IntersectionResult {
     intersection_exists: boolean;
     intersection_point?: Vector2D;
+}
+
+function assert_not(expression: boolean, message: string) {
+    if (expression) alert(message);
 }
 
 function is_intersecting(l1: Line, l2: Line): Intersection {
@@ -58,8 +64,8 @@ function on_segment(line: Line, x: number, y: number) {
     const Y1 = line.start_position.y;
     const Y2 = line.end_position.y;
 
-    return Math.min(X1, X2) <= x && x <= Math.max(X1, X2) &&
-           Math.min(Y1, Y2) <= y && y <= Math.max(Y1, Y2);
+    return Math.min(X1, X2) - eps <= x && x <= Math.max(X1, X2) + eps &&
+           Math.min(Y1, Y2) - eps <= y && y <= Math.max(Y1, Y2) + eps;
 }
 
 function get_line_constants(line: Line) {
@@ -94,7 +100,7 @@ $(document).ready(() => {
     const canvas = document.getElementById("canvas") as HTMLCanvasElement;
     const ctx = canvas.getContext("2d");
 
-    const $time = Rx.Observable.interval(10 * slow_down)
+    const $time = Rx.Observable.interval(time_interval)
         .timeInterval();
 
     $time.scan((game_set, time_unit) => {
@@ -205,11 +211,13 @@ class Vector2D extends Entity {
 class Line extends Entity {
     public start_position: Vector2D;
     public end_position: Vector2D;
+    public elasticity: number;
 
-    constructor(start_position: Vector2D, end_position: Vector2D) {
+    constructor(start_position: Vector2D, end_position: Vector2D, elasticity: number) {
         super();
         this.start_position = start_position;
         this.end_position = end_position;
+        this.elasticity = elasticity;
     }
     public offset(vector: Vector2D): Line {
         return this.copy({ start_position: this.start_position.add_vector(vector), end_position: this.end_position.add_vector(vector) });
@@ -219,6 +227,9 @@ class Line extends Entity {
     }
     public normal(): Vector2D {
         return this.start_position.to(this.end_position).rotate(Math.PI / 2).normalize();
+    }
+    public toString() {
+        return "{start: " + this.start_position.toString() + ", end: " + this.end_position.toString() + "}"; 
     }
 }
 interface CollisionResult {
@@ -250,8 +261,8 @@ class PhysicalObject extends Entity {
         this.center_of_mass = this.lines.reduce((com, line) => com.add_vector(line.start_position.multiply(contribution_ratio)).add_vector(line.end_position.multiply(contribution_ratio)), Vector2D.empty);
     }
     protected _define_attributes() {
-        this.position = new Vector2D(10, 20);
-        this.velocity = new Vector2D(2, 0);
+        this.position = new Vector2D(0, 0);
+        this.velocity = new Vector2D(0, 0);
         this.angle = 0;
         this.angular_velocity = 0;
         this.mass = 1;
@@ -262,7 +273,7 @@ class PhysicalObject extends Entity {
     public updated(time_unit: number): PhysicalObject {
         const gravity_vector = new Vector2D(0, 9.8);
         const velocity_air_drag_vector = this.velocity.multiply(0.3 * time_unit / 1000).reverse();
-        const angular_velocity_air_drag = this.angular_velocity * -0.4 * time_unit / 1000;
+        const angular_velocity_air_drag = this.angular_velocity * -0.5 * time_unit / 1000;
 
         return this.copy({
             position: this.position.add_vector(this.velocity.multiply(time_unit * 1.0 / 1000)),
@@ -320,8 +331,8 @@ class PhysicalObject extends Entity {
         var intersections = Immutable.List<Intersection>();
         const self = this;
         this.lines.forEach(l1 => {
+            const projected_l1 = l1.rotate(self.angle).offset(self.position);
             other.lines.forEach(l2 => {
-                const projected_l1 = l1.rotate(self.angle).offset(self.position);
                 const projected_l2 = l2.rotate(other.angle).offset(other.position);
                 const intersection_result = is_intersecting(projected_l1, projected_l2);
                 if (intersection_result.intersection_exists) {
@@ -338,7 +349,9 @@ class PhysicalObject extends Entity {
                              game_set_rec: GameSet, remaining: Immutable.List<number>): GameSet => {
             if (remaining.size == 0) {
                 const updated_self = game_set_rec.contents.get(self.id) as PhysicalObject;
-                return game_set_rec.replace_element(updated_self.move(delta_position_rec).rotate(delta_angle_rec));
+                const updated_self_with_delta = updated_self.move(delta_position_rec).rotate(delta_angle_rec);
+                assert_not(updated_self_with_delta.lines.some(line => {let d = line.rotate(self.angle).offset(self.position); return d.start_position.y > 100 || d.end_position.y > 100;}), "object overlap bottom ground");
+                return game_set_rec.replace_element(updated_self_with_delta);
             }
 
             const first_key = remaining.first();
@@ -368,7 +381,6 @@ class PhysicalObject extends Entity {
             };
 
         // Impulse-based collision handling. Reference: https://www.myphysicslab.com/engine2D/collision-en.html#collision_physics
-        const elasticity = 0.7;
         const impulse_weight = 1.0 / collision.intersections.size;
 
         if (other.is_ground) {
@@ -377,6 +389,8 @@ class PhysicalObject extends Entity {
     
                 const first_intersection = remaining_intersections.first();
                 const intersection_point = first_intersection.intersection_point;
+
+                const elasticity = first_intersection.self_line.elasticity * first_intersection.other_line.elasticity;
         
                 const normal = first_intersection.other_line.normal(); 
                 const r_ap = advanced_self.position.add_vector(advanced_self.center_of_mass).to(intersection_point);
@@ -408,6 +422,8 @@ class PhysicalObject extends Entity {
     
                 var first_intersection = remaining_intersections.first();
                 var intersection_point = first_intersection.intersection_point;
+
+                const elasticity = first_intersection.self_line.elasticity * first_intersection.other_line.elasticity;
 
                 var normal = first_intersection.self_line.normal();
 
@@ -465,6 +481,9 @@ class PhysicalObject extends Entity {
     public rotate(delta_angle: number): PhysicalObject {
         return this.copy({ angle: this.angle + delta_angle });
     }
+    public toString() {
+        return this.lines.map(line => line.rotate(this.angle).offset(this.position). toString()).join("\n");
+    }
 }
 class Intersection {
     public self_line: Line;
@@ -514,14 +533,14 @@ class Ball extends GameElement {
     }
     protected _build_lines() {
         super._build_lines();
-        const samples = 24;
+        const samples = 16;
         for (var s = 0; s < samples; s++) {
             var angle1 = -s * 2 * Math.PI / samples;
             var angle2 = -(s + 1) * 2 * Math.PI / samples;
 
             var start_position = new Vector2D(this.radius * Math.cos(angle1), this.radius * Math.sin(angle1));
             var end_position = new Vector2D(this.radius * Math.cos(angle2), this.radius * Math.sin(angle2));
-            this.lines = this.lines.push(new Line(start_position, end_position));
+            this.lines = this.lines.push(new Line(start_position, end_position, general_elasticity));
         }
     }
     public update_game_set(time_unit: number, game_set: GameSet): GameSet {
@@ -558,9 +577,7 @@ class Car extends GameElement {
     }
     protected _define_attributes() {
         super._define_attributes();
-        this.position = new Vector2D(60, 65);
-        this.velocity = new Vector2D(0, -10);
-        this.angular_velocity = 0;
+        this.position = new Vector2D(60, 85);
         this.mass = 40;
         this.flying_state = "flying";
         this.jump_state = "station";
@@ -572,14 +589,21 @@ class Car extends GameElement {
 
         const f = 3;
 
-        const points = [[20, 14], [20, 4], [-2, -7], [-20, -10], [-20, 14]];
-        const tire = [false, false, false, false, false];
+        const points = [[20, 10], [20, 4],
+                        [-2, -7], [-20, -10],
+                        [-20, 10], [-20, 14], [-8, 14], [-6, 10],
+                        [6, 10], [8, 14], [20, 14]];
+
+        const elasticity = [general_elasticity, general_elasticity,
+                            general_elasticity, general_elasticity,
+                            tire_elasticity, tire_elasticity, tire_elasticity, general_elasticity,
+                            tire_elasticity, tire_elasticity, tire_elasticity];
 
         for (let i = 0; i < points.length; i++) {
             const j = (i + 1) % points.length;
             const p1 = points[i];
             const p2 = points[j];
-            this.lines = this.lines.push(new Line(new Vector2D(p1[0] / f, p1[1] / f), new Vector2D(p2[0] / f, p2[1] / f)));
+            this.lines = this.lines.push(new Line(new Vector2D(p1[0] / f, p1[1] / f), new Vector2D(p2[0] / f, p2[1] / f), elasticity[i]));
         }
 
         this.nitro = new Vector2D(-20 / f, 0);
@@ -702,10 +726,10 @@ class Ground extends GameElement {
     protected _build_lines() {
         super._build_lines()
         this.lines = Immutable.List([
-            new Line(new Vector2D(200, 100), new Vector2D(0, 100)),
-            new Line(new Vector2D(0, 100), new Vector2D(0, 0)),
-            new Line(new Vector2D(200, 0), new Vector2D(200, 100)),
-            new Line(new Vector2D(0, 0), new Vector2D(200, 0))]);
+            new Line(new Vector2D(200, 100), new Vector2D(0, 100), general_elasticity),
+            new Line(new Vector2D(0, 100), new Vector2D(0, 0), general_elasticity),
+            new Line(new Vector2D(200, 0), new Vector2D(200, 100), general_elasticity),
+            new Line(new Vector2D(0, 0), new Vector2D(200, 0), general_elasticity)]);
     }
     public update_game_set(_: number, game_set: GameSet) {
         return game_set;

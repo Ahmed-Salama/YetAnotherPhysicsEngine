@@ -18,14 +18,13 @@ const field_width = 20;
 const inner_field_width = field_width - 2;
 const field_height = 30;
 const drawing_scale = 6;
-const eps = 0.1;
+const eps = 0.0000001;
 let debugging = false;
 let paused = false;
 const time_interval = 15;
 const time_step = 2.2 * time_interval;
 const general_elasticity = 0.8;
-const tire_elasticity = 0.55;
-
+const tire_elasticity = 0.1;
 interface IntersectionResult {
     intersection_exists: boolean;
     intersection_point?: Vector2D;
@@ -272,8 +271,8 @@ class PhysicalObject extends Entity {
     }
     public updated(time_unit: number): PhysicalObject {
         const gravity_vector = new Vector2D(0, 9.8);
-        const velocity_air_drag_vector = this.velocity.multiply(0.3 * time_unit / 1000).reverse();
-        const angular_velocity_air_drag = this.angular_velocity * -0.5 * time_unit / 1000;
+        const velocity_air_drag_vector = this.velocity.normalize().reverse().multiply(Math.pow(this.velocity.length(), 2) * 0.01 * time_unit / 1000);
+        const angular_velocity_air_drag = (this.angular_velocity > 0 ? -1 : 1) * Math.pow(this.angular_velocity, 2) * 0.7 * time_unit / 1000;
 
         return this.copy({
             position: this.position.add_vector(this.velocity.multiply(time_unit * 1.0 / 1000)),
@@ -311,10 +310,10 @@ class PhysicalObject extends Entity {
         this.lines.forEach(line => {
             self._stroke_line(line.start_position, line.end_position, "black", ctx);
 
-            var start_to_end_vector = line.start_position.to(line.end_position);
-            var mid_point = start_to_end_vector.normalize().multiply(start_to_end_vector.length() / 2);
-            var normal_start_position = line.start_position.add_vector(mid_point);
-            var normal_end_position = line.start_position.add_vector(mid_point).add_vector(line.normal());
+            const start_to_end_vector = line.start_position.to(line.end_position);
+            const mid_point = start_to_end_vector.normalize().multiply(start_to_end_vector.length() / 2);
+            const normal_start_position = line.start_position.add_vector(mid_point);
+            const normal_end_position = line.start_position.add_vector(mid_point).add_vector(line.normal());
             self._stroke_line(normal_start_position, normal_end_position, "black", ctx);
         });
 
@@ -345,13 +344,14 @@ class PhysicalObject extends Entity {
     }
     public collideAll(delta_position: Vector2D, delta_angle: number, game_set: GameSet): GameSet {
         const self = this;
-        const collidedRec = (delta_position_rec: Vector2D, delta_angle_rec: number,
+        const collided_all_rec = (delta_position_rec: Vector2D, delta_angle_rec: number,
                              game_set_rec: GameSet, remaining: Immutable.List<number>): GameSet => {
             if (remaining.size == 0) {
                 const updated_self = game_set_rec.contents.get(self.id) as PhysicalObject;
                 const updated_self_with_delta = updated_self.move(delta_position_rec).rotate(delta_angle_rec);
-                assert_not(updated_self_with_delta.lines.some(line => {let d = line.rotate(self.angle).offset(self.position); return d.start_position.y > 100 || d.end_position.y > 100;}), "object overlap bottom ground");
-                return game_set_rec.replace_element(updated_self_with_delta);
+                const must_reset = game_set_rec.contents.entrySeq().filter(([k, v]) => k != self.id).map(([k, v]) => v).toList().some(other => updated_self_with_delta.calculate_collision(other).collided());
+                
+                return must_reset ? game_set_rec : game_set_rec.replace_element(updated_self_with_delta);
             }
 
             const first_key = remaining.first();
@@ -363,10 +363,10 @@ class PhysicalObject extends Entity {
             const new_delta_position = collision_result.delta_position;
             const new_delta_angle = collision_result.delta_angle;
 
-            return collidedRec(new_delta_position, new_delta_angle, new_game_set, remaining.shift());
+            return collided_all_rec(new_delta_position, new_delta_angle, new_game_set, remaining.shift());
         }
 
-        return collidedRec(delta_position, delta_angle, game_set.replace_element(this), game_set.contents.keySeq().filter(o => o != this.id).toList());
+        return collided_all_rec(delta_position, delta_angle, game_set.replace_element(this), game_set.contents.keySeq().filter(o => o != this.id).toList());
     }
     public collide(delta_position: Vector2D, delta_angle: number, other: PhysicalObject,
                    game_set: GameSet): CollisionResult {
@@ -375,7 +375,7 @@ class PhysicalObject extends Entity {
         const collision = advanced_self.calculate_collision(other);
         if (!collision.collided())
             return {
-                game_set: game_set.replace_element(this),
+                game_set: game_set,
                 delta_position: delta_position,
                 delta_angle: delta_angle
             };
@@ -384,70 +384,73 @@ class PhysicalObject extends Entity {
         const impulse_weight = 1.0 / collision.intersections.size;
 
         if (other.is_ground) {
-            const collide_rec = (delta_v_a: Vector2D, delta_w_a: number, remaining_intersections: Immutable.List<Intersection>): any => {
-                if (remaining_intersections.size == 0) return {"d_v_a": delta_v_a, "d_w_a": delta_w_a};
+            const collide_rec = (delta_v_a: Vector2D, delta_w_a: number, delta_p: Vector2D, remaining_intersections: Immutable.List<Intersection>): any => {
+                if (remaining_intersections.size == 0) return {"d_v_a": delta_v_a, "d_w_a": delta_w_a, "d_p": delta_p};
     
-                const first_intersection = remaining_intersections.first();
-                const intersection_point = first_intersection.intersection_point;
+                const intersection = remaining_intersections.first();
+                const intersection_point = intersection.intersection_point;
 
-                const elasticity = first_intersection.self_line.elasticity * first_intersection.other_line.elasticity;
+                const elasticity = (intersection.self_line.elasticity + intersection.other_line.elasticity) / 2;
         
-                const normal = first_intersection.other_line.normal(); 
+                const normal = intersection.other_line.normal(); 
                 const r_ap = advanced_self.position.add_vector(advanced_self.center_of_mass).to(intersection_point);
 
                 const v_a1 = advanced_self.velocity;
                 const w_a1 = advanced_self.angular_velocity;
 
-                var v_ap1 = v_a1.add_vector(r_ap.crossW(w_a1));
+                const v_ap1 = v_a1.add_vector(r_ap.crossW(w_a1));
 
-                var m_a = advanced_self.mass;
-                var i_a = advanced_self.moment_of_inertia;
+                const m_a = advanced_self.mass;
+                const i_a = advanced_self.moment_of_inertia;
 
-                var impulse = - impulse_weight * (1 + elasticity) * v_ap1.dot(normal) / (1.0/m_a + Math.pow(r_ap.cross(normal), 2)/i_a);
+                const impulse = - impulse_weight * (1 + elasticity) * v_ap1.dot(normal) / (1.0/m_a + Math.pow(r_ap.cross(normal), 2)/i_a);
 
-                var d_v_a = normal.multiply(impulse / m_a);
-                var d_w_a = r_ap.cross(normal.multiply(impulse)) / i_a;
+                const d_v_a = normal.multiply(impulse / m_a);
+                const d_w_a = r_ap.cross(normal.multiply(impulse)) / i_a;
 
-                return collide_rec(delta_v_a.add_vector(d_v_a), delta_w_a + d_w_a, remaining_intersections.shift());
+                const new_delta_p = delta_p.rotate(-normal.angle()).resetX().rotate(normal.angle());
+
+                return collide_rec(delta_v_a.add_vector(d_v_a), delta_w_a + d_w_a, new_delta_p, remaining_intersections.shift());
             }
 
-            var delta = collide_rec(Vector2D.empty, 0, collision.intersections);
+            const delta = collide_rec(Vector2D.empty, 0, delta_position, collision.intersections);
+            const still_colliding = this.move(delta.d_p).calculate_collision(other).collided();
 
             return {"game_set": game_set.replace_element(this.copy({velocity: this.velocity.add_vector(delta.d_v_a), angular_velocity: this.angular_velocity + delta.d_w_a})),
-                    "delta_position": Vector2D.empty,
+                    "delta_position": still_colliding ? Vector2D.empty : delta.d_p,
                     "delta_angle": 0};
         } else {
-            var collide_rec = (delta_v_a: Vector2D, delta_w_a: number, delta_v_b: Vector2D, delta_w_b: number, remaining_intersections: Immutable.List<Intersection>): any => {
-                if (remaining_intersections.size == 0) return {"d_v_a": delta_v_a, "d_w_a": delta_w_a, "d_v_b": delta_v_b, "d_w_b": delta_w_b};
+            const collide_rec = (delta_v_a: Vector2D, delta_w_a: number, delta_v_b: Vector2D, delta_w_b: number, delta_p: Vector2D, remaining_intersections: Immutable.List<Intersection>): any => {
+                if (remaining_intersections.size == 0) return {"d_v_a": delta_v_a, "d_w_a": delta_w_a, "d_v_b": delta_v_b, "d_w_b": delta_w_b, "d_p": delta_p};
     
-                var first_intersection = remaining_intersections.first();
-                var intersection_point = first_intersection.intersection_point;
+                const intersection = remaining_intersections.first();
+                const intersection_point = intersection.intersection_point;
 
-                const elasticity = first_intersection.self_line.elasticity * first_intersection.other_line.elasticity;
+                const elasticity = (intersection.self_line.elasticity + intersection.other_line.elasticity) / 2;
 
-                var normal = first_intersection.self_line.normal();
+                const normal = intersection.self_line.normal();
 
-                var v_a1 = advanced_self.velocity;
-                var v_b1 = other.velocity;
+                const v_a1 = advanced_self.velocity;
+                const v_b1 = other.velocity;
 
-                var r_ap = advanced_self.position.add_vector(advanced_self.center_of_mass).to(intersection_point);
-                var r_bp = other.position.add_vector(advanced_self.center_of_mass).to(intersection_point);
+                const r_ap = advanced_self.position.add_vector(advanced_self.center_of_mass).to(intersection_point);
+                const r_bp = other.position.add_vector(advanced_self.center_of_mass).to(intersection_point);
 
-                var w_a1 = advanced_self.angular_velocity;
-                var w_b1 = other.angular_velocity;
+                const w_a1 = advanced_self.angular_velocity;
+                const w_b1 = other.angular_velocity;
 
-                var v_ap1 = v_a1.add_vector(r_ap.crossW(w_a1));
-                var v_bp1 = v_b1.add_vector(r_bp.crossW(w_b1));
+                const v_ap1 = v_a1.add_vector(r_ap.crossW(w_a1));
+                const v_bp1 = v_b1.add_vector(r_bp.crossW(w_b1));
 
-                var v_ab1 = v_ap1.subtract(v_bp1);
+                const v_ab1 = v_ap1.subtract(v_bp1);
 
-                var m_a = advanced_self.mass;
-                var m_b = other.mass;
+                const m_a = advanced_self.mass;
+                const m_b = other.mass;
 
-                var i_a = advanced_self.moment_of_inertia;
-                var i_b = other.moment_of_inertia;
+                const i_a = advanced_self.moment_of_inertia;
+                const i_b = other.moment_of_inertia;
 
-                var impulse = - impulse_weight * (1 + elasticity) * v_ab1.dot(normal) / (1.0/m_a + 1.0/m_b + Math.pow(r_ap.cross(normal), 2)/i_a + Math.pow(r_bp.cross(normal), 2)/i_b);
+                const impulse = - impulse_weight * (1 + elasticity) * v_ab1.dot(normal) / (1.0/m_a + 1.0/m_b + Math.pow(r_ap.cross(normal), 2)/i_a + Math.pow(r_bp.cross(normal), 2)/i_b);
 
                 // alert("Self: " + advanced_self.position +
                     // "\nOther: " + other.position + 
@@ -456,22 +459,25 @@ class PhysicalObject extends Entity {
                     // "\nVelocity: " + v_ab1.dot(normal) +
                     // "\nTerm: " + (1.0/m_a + 1.0/m_b));
 
-                var d_v_a = normal.multiply(impulse / m_a);
-                var d_v_b = normal.multiply(-impulse / m_b);
+                const d_v_a = normal.multiply(impulse / m_a);
+                const d_v_b = normal.multiply(-impulse / m_b);
 
-                var d_w_a = r_ap.cross(normal.multiply(impulse)) / i_a;
-                var d_w_b = -r_bp.cross(normal.multiply(impulse)) / i_b;
+                const d_w_a = r_ap.cross(normal.multiply(impulse)) / i_a;
+                const d_w_b = -r_bp.cross(normal.multiply(impulse)) / i_b;
 
-                return collide_rec(delta_v_a.add_vector(d_v_a), delta_w_a + d_w_a, delta_v_b.add_vector(d_v_b), delta_w_b + d_w_b, remaining_intersections.shift());
+                const new_delta_p = delta_p.rotate(-normal.angle()).resetX().rotate(normal.angle());
+
+                return collide_rec(delta_v_a.add_vector(d_v_a), delta_w_a + d_w_a, delta_v_b.add_vector(d_v_b), delta_w_b + d_w_b, new_delta_p, remaining_intersections.shift());
             }
 
-            var delta = collide_rec(Vector2D.empty, 0, Vector2D.empty, 0, collision.intersections);
+            const delta = collide_rec(Vector2D.empty, 0, Vector2D.empty, 0, delta_position, collision.intersections);
 
-            var updated_self = this.copy({velocity: this.velocity.add_vector(delta.d_v_a), angular_velocity: this.angular_velocity + delta.d_w_a});
-            var updated_other = other.copy({velocity: other.velocity.add_vector(delta.d_v_b), angular_velocity: other.angular_velocity + delta.d_w_b});
+            const updated_self = this.copy({velocity: this.velocity.add_vector(delta.d_v_a), angular_velocity: this.angular_velocity + delta.d_w_a});
+            const updated_other = other.copy({velocity: other.velocity.add_vector(delta.d_v_b), angular_velocity: other.angular_velocity + delta.d_w_b});
+            const still_colliding = this.move(delta.d_p).calculate_collision(other).collided();
 
             return {"game_set": game_set.replace_element(updated_self).replace_element(updated_other),
-                    "delta_position": Vector2D.empty,
+                    "delta_position": still_colliding ? Vector2D.empty : delta.d_p,
                     "delta_angle": 0};
         }
     }
@@ -535,11 +541,11 @@ class Ball extends GameElement {
         super._build_lines();
         const samples = 16;
         for (var s = 0; s < samples; s++) {
-            var angle1 = -s * 2 * Math.PI / samples;
-            var angle2 = -(s + 1) * 2 * Math.PI / samples;
+            const angle1 = -s * 2 * Math.PI / samples;
+            const angle2 = -(s + 1) * 2 * Math.PI / samples;
 
-            var start_position = new Vector2D(this.radius * Math.cos(angle1), this.radius * Math.sin(angle1));
-            var end_position = new Vector2D(this.radius * Math.cos(angle2), this.radius * Math.sin(angle2));
+            const start_position = new Vector2D(this.radius * Math.cos(angle1), this.radius * Math.sin(angle1));
+            const end_position = new Vector2D(this.radius * Math.cos(angle2), this.radius * Math.sin(angle2));
             this.lines = this.lines.push(new Line(start_position, end_position, general_elasticity));
         }
     }
@@ -591,12 +597,10 @@ class Car extends GameElement {
 
         const points = [[20, 10], [20, 4],
                         [-2, -7], [-20, -10],
-                        [-20, 10], [-20, 14], [-8, 14], [-6, 10],
-                        [6, 10], [8, 14], [20, 14]];
+                        [-20, 10], [-16, 14], [16, 14]];
 
         const elasticity = [general_elasticity, general_elasticity,
                             general_elasticity, general_elasticity,
-                            tire_elasticity, tire_elasticity, tire_elasticity, general_elasticity,
                             tire_elasticity, tire_elasticity, tire_elasticity];
 
         for (let i = 0; i < points.length; i++) {
@@ -610,6 +614,7 @@ class Car extends GameElement {
         this.jumper = new Vector2D(0, 14 / f);
     }
     public update_game_set(time_unit: number, game_set: GameSet): GameSet{
+        const self = this;
         const advanced_car_gravity: Car = super.updated(time_unit) as Car;
 
         const cat_after_nitro_input: Car = advanced_car_gravity.copy({ nitro_state: key_pressed.get("up") ? "active" : "idle" });
@@ -670,7 +675,7 @@ class Car extends GameElement {
 
             // Nitro
             if (this.nitro_state == "active") {
-                var random_extra_length = 4 * Math.random();
+                const random_extra_length = 4 * Math.random();
                 draw_polygon([[-10, -3], [-30 - random_extra_length, -1], [-30 - random_extra_length, 3], [-10, 4]], "#D35400");
                 draw_polygon([[-10, -2], [-25 - random_extra_length, 0], [-25 - random_extra_length, 2], [-10, 4]], "#F4D03F");
             }
@@ -773,6 +778,8 @@ class GameSet extends Entity {
         this.contents.valueSeq().forEach((o: GameElement) => o.draw(ctx));
     }
     public replace_element(element: Entity): GameSet {
+        const physical = element as PhysicalObject;
+        assert_not(physical.lines.some(line => {let d = line.rotate(physical.angle).offset(physical.position); return d.start_position.y > 100 || d.end_position.y > 100;}), "object overlap bottom ground");
         return this.copy({ contents: this.contents.set(element.id, element) });
     }
 }

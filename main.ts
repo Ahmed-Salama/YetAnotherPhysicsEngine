@@ -27,9 +27,70 @@ const time_step = 1000 / frames_per_second;
 const time_scale = 2.3;
 const general_elasticity = 0.7;
 const tire_elasticity = 0.05;
+// colors
+const ground_pattern_color = "#212F3D";
+const clear_rect_color = "#EAECEE";
+const ground_stroke_color = "#17202A";
+
 interface IntersectionResult {
     intersection_exists: boolean;
     intersection_point?: Vector2D;
+}
+
+  function createPinstripeCanvas() {
+    const patternCanvas = document.createElement("canvas");
+    const pctx = patternCanvas.getContext('2d', { antialias: true });
+    const colour = ground_pattern_color;
+
+    const CANVAS_SIDE_LENGTH = 15;
+    const WIDTH = CANVAS_SIDE_LENGTH;
+    const HEIGHT = CANVAS_SIDE_LENGTH;
+    const DIVISIONS = 4;
+
+    patternCanvas.width = WIDTH;
+    patternCanvas.height = HEIGHT;
+    pctx.fillStyle = colour;
+
+    // Top line
+    pctx.beginPath();
+    pctx.moveTo(0, HEIGHT * (1 / DIVISIONS));
+    pctx.lineTo(WIDTH * (1 / DIVISIONS), 0);
+    pctx.lineTo(0, 0);
+    pctx.lineTo(0, HEIGHT * (1 / DIVISIONS));
+    pctx.fill();
+
+    // Middle line
+    pctx.beginPath();
+    pctx.moveTo(WIDTH, HEIGHT * (1 / DIVISIONS));
+    pctx.lineTo(WIDTH * (1 / DIVISIONS), HEIGHT);
+    pctx.lineTo(0, HEIGHT);
+    pctx.lineTo(0, HEIGHT * ((DIVISIONS - 1) / DIVISIONS));
+    pctx.lineTo(WIDTH * ((DIVISIONS - 1) / DIVISIONS), 0);
+    pctx.lineTo(WIDTH, 0);
+    pctx.lineTo(WIDTH, HEIGHT * (1 / DIVISIONS));
+    pctx.fill();
+
+    // Bottom line
+    pctx.beginPath();
+    pctx.moveTo(WIDTH, HEIGHT * ((DIVISIONS - 1) / DIVISIONS));
+    pctx.lineTo(WIDTH * ((DIVISIONS - 1) / DIVISIONS), HEIGHT);
+    pctx.lineTo(WIDTH, HEIGHT);
+    pctx.lineTo(WIDTH, HEIGHT * ((DIVISIONS - 1) / DIVISIONS));
+    pctx.fill();
+
+    return patternCanvas;
+}
+
+const patter_canvas = createPinstripeCanvas();
+function fillWithPattern(targetCanvas: HTMLCanvasElement, patternCanvas: HTMLCanvasElement){
+    const ctx = targetCanvas.getContext('2d', { antialias: false, depth: false });
+    const width = targetCanvas.width;
+    const height = targetCanvas.height;
+    if (!width || !height) throw new Error("progressCanvas's width/height falsy.");
+
+    ctx.fillRect(0, 0, width, height);
+
+    return targetCanvas;
 }
 
 function assert_not(expression: boolean, message: string) {
@@ -114,7 +175,12 @@ $(document).ready(() => {
             }
         }, new GameSet(true))
         .subscribe((game_set: GameSet) => {
-            ctx.clearRect(0, 0, canvas_size, canvas_size);
+            // clear rect
+            ctx.save();
+            ctx.fillStyle = clear_rect_color;
+            ctx.fillRect(0, 0, canvas_size, canvas_size);
+            ctx.restore();
+
             game_set.draw(ctx);
         });
 });
@@ -748,7 +814,9 @@ class Car extends GameElement {
 }
 
 class Ground extends GameElement {
-    public lines: Immutable.List<Line>;
+    public outer_lines: Immutable.List<Line>;
+    public points: Immutable.List<Array<number>>;
+    public outer_points: Immutable.List<Array<number>>;
 
     constructor(initialize: boolean) {
         super(initialize);
@@ -760,15 +828,73 @@ class Ground extends GameElement {
         this.position = Vector2D.empty;
     }
     protected _build_lines() {
-        super._build_lines()
-        this.lines = Immutable.List([
-            new Line(new Vector2D(200, 100), new Vector2D(0, 100), general_elasticity),
-            new Line(new Vector2D(0, 100), new Vector2D(0, 0), general_elasticity),
-            new Line(new Vector2D(200, 0), new Vector2D(200, 100), general_elasticity),
-            new Line(new Vector2D(0, 0), new Vector2D(200, 0), general_elasticity)]);
+        super._build_lines();
+
+        this.outer_lines = Immutable.List();
+
+        const padding = 5;
+        this.points = Immutable.List([[0+padding, 0+padding], [200 - padding, 0+padding], [200-padding, 100-padding], [0+padding, 100-padding]]);
+        const offsets = Immutable.List([[-1, -1], [1, -1], [1, 1], [-1, 1]]);
+        const offset = 10;
+        this.outer_points = this.points.zip(offsets).map(([p, o]) => [p[0] + o[0] * offset, p[1] + o[1] * offset]).toList();
+
+        const points_array = this.points.toArray();
+        for (var i = 0; i < this.points.size; i++) {
+            var j = (i + 1) % this.points.size;
+            const start_position = new Vector2D(points_array[i][0], points_array[i][1]);
+            const end_position = new Vector2D(points_array[j][0], points_array[j][1]);
+            this.lines = this.lines.push(new Line(start_position, end_position, general_elasticity));
+        }
+
+        const outer_points_array = this.outer_points.toArray();
+        for (var i = 0; i < outer_points_array.length; i++) {
+            var j = (i + 1) % outer_points_array.length;
+            const start_position = new Vector2D(outer_points_array[i][0], outer_points_array[i][1]);
+            const end_position = new Vector2D(outer_points_array[j][0], outer_points_array[j][1]);
+            this.outer_lines = this.outer_lines.push(new Line(start_position, end_position, general_elasticity));
+        }
     }
     public update_game_set(_: number, game_set: GameSet) {
         return game_set;
+    }
+    public draw(ctx: CanvasRenderingContext2D) {
+        const f = 1;
+        const self = this;
+
+        ctx.save();
+        const line_to = (x: number, y: number) => {
+            const vector = this._translate(new Vector2D(x / f, y / f));
+            return ctx.lineTo(drawing_scale * vector.x, drawing_scale * vector.y);
+        }
+        const move_to = (x: number, y: number) => {
+            const vector = this._translate(new Vector2D(x / f, y / f));
+            return ctx.moveTo(drawing_scale * vector.x, drawing_scale * vector.y);
+        }
+        ctx.beginPath();
+        const draw_polygon_pattern = (points: number[][]) => {
+            ctx.fillStyle = ctx.createPattern(patter_canvas, 'repeat');
+            move_to(points[0][0], points[0][1]);
+            for (var i = 1; i < points.length; i++) {
+                line_to(points[i][0], points[i][1]);
+            }
+        }
+
+        draw_polygon_pattern(this.points.toArray());
+        draw_polygon_pattern(this.outer_points.toArray());
+        ctx.fill('evenodd');
+
+        ctx.beginPath();
+        const draw_polygon = (points: number[][]) => {
+            move_to(points[0][0], points[0][1]);
+            for (var i = 1; i < points.length + 1; i++) {
+                const index = i % points.length;
+                line_to(points[index][0], points[index][1]);
+            }
+        }
+        ctx.strokeStyle = ground_stroke_color;
+        draw_polygon(this.points.toArray());
+        ctx.stroke();
+        ctx.restore();
     }
 }
 

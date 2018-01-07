@@ -7,7 +7,8 @@ const keyDefs = new Map([
     [39, 'right'],
     [40, 'down'],
     [32, 'space'],
-    [65, 'jump'],
+    [65, 'A'],
+    [83, 'S']
 ]);
 const canvas_size = 1200;
 const canvas_offset_x = 50;
@@ -227,6 +228,9 @@ class Line extends Entity {
     public normal(): Vector2D {
         return this.start_position.to(this.end_position).rotate(Math.PI / 2).normalize();
     }
+    public flipX(): Line {
+        return this.copy({ start_position: this.start_position.flipX(), end_position: this.end_position.flipX() }) as Line;
+    }
     public toString() {
         return "{start: " + this.start_position.toString() + ", end: " + this.end_position.toString() + "}"; 
     }
@@ -349,7 +353,7 @@ class PhysicalObject extends Entity {
             if (remaining.size == 0) {
                 const updated_self = game_set_rec.contents.get(self.id) as PhysicalObject;
                 const updated_self_with_delta = updated_self.move(delta_position_rec).rotate(delta_angle_rec);
-                const must_reset = game_set_rec.contents.entrySeq().filter(([k, v]) => k != self.id).map(([k, v]) => v).toList().some(other => updated_self_with_delta.calculate_collision(other).collided());
+                const must_reset = game_set_rec.get_objects_except(self).some(other => updated_self_with_delta.calculate_collision(other as PhysicalObject).collided());
                 
                 return must_reset ? game_set_rec : game_set_rec.replace_element(updated_self_with_delta);
             }
@@ -575,8 +579,10 @@ class Car extends GameElement {
     public flying_state: string;
     public jump_state: string;
     public nitro_state: string;
+    public flip_state: string;
     public nitro: Vector2D;
     public jumper: Vector2D;
+    public direction: number;
 
     constructor(initialize: boolean) {
         super(initialize);
@@ -588,6 +594,8 @@ class Car extends GameElement {
         this.flying_state = "flying";
         this.jump_state = "station";
         this.nitro_state = "idle";
+        this.flip_state = "idle";
+        this.direction = 1;
         this.name = "car";
     }
     protected _build_lines() {
@@ -613,12 +621,31 @@ class Car extends GameElement {
         this.nitro = new Vector2D(-20 / f, 0);
         this.jumper = new Vector2D(0, 14 / f);
     }
+    protected _mirrorX(): Car {
+        return this.copy({
+            lines: this.lines.map(line => line.flipX()).toList(),
+            nitro: this.nitro.flipX(),
+            jumper: this.jumper.flipX(),
+            direction: this.direction * -1
+        });
+    }
     public update_game_set(time_unit: number, game_set: GameSet): GameSet{
         const self = this;
-        const advanced_car_gravity: Car = super.updated(time_unit) as Car;
+        const car_after_flip_input: Car = key_pressed.get("S") ?
+            (this.flip_state == "idle" ?
+                self.copy({ flip_state: "active" }) :
+                self) :
+            (this.flip_state == "idle" ?
+                self :
+                self.copy({ flip_state: "idle" }));
+
+        const car_flipping = self.flip_state == "idle" && car_after_flip_input.flip_state == "active";
+        const car_after_flip = car_flipping  ? car_after_flip_input._mirrorX() : car_after_flip_input;
+
+        const advanced_car_gravity: Car = car_after_flip.updated(time_unit) as Car;
 
         const cat_after_nitro_input: Car = advanced_car_gravity.copy({ nitro_state: key_pressed.get("up") ? "active" : "idle" });
-        const car_after_jump_input: Car = key_pressed.get("jump") ?
+        const car_after_jump_input: Car = key_pressed.get("A") ?
             (this.jump_state == "station" ?
                 cat_after_nitro_input.copy({ flying_state: "flying", jump_state: "jumping" }) :
                 cat_after_nitro_input) :
@@ -627,12 +654,12 @@ class Car extends GameElement {
                 cat_after_nitro_input.copy({ jump_state: "station" }));
         const car_after_all_input = car_after_jump_input;
 
-        const car_jumping = this.jump_state == "station" && car_after_all_input.jump_state == "jumping";
+        const car_jumping = car_after_flip.jump_state == "station" && car_after_all_input.jump_state == "jumping";
         const car_flying = car_after_all_input.flying_state == "flying";
-        const nitro_active = car_after_all_input.nitro_state == "active";
+        const nitro_active = car_after_flip.nitro_state == "active";
 
-        const nitro_vector = this.nitro.normalize().multiply(nitro_active ? 1 : 0).rotate(this.angle).reverse().multiply(20);
-        const jump_vector = this.jumper.normalize().multiply(car_jumping ? 1 : 0).rotate(this.angle).reverse().multiply(10);
+        const nitro_vector = car_after_flip.nitro.normalize().multiply(nitro_active ? 1 : 0).rotate(this.angle).reverse().multiply(20);
+        const jump_vector = car_after_flip.jumper.normalize().multiply(car_jumping ? 1 : 0).rotate(this.angle).reverse().multiply(10);
         const angular_force = (key_pressed.get("left") * -1 + key_pressed.get("right")) * (car_flying ? 4 : 0);
 
         const advanced_car: Car = car_after_all_input.copy({
@@ -645,6 +672,7 @@ class Car extends GameElement {
     }
     public draw(ctx: CanvasRenderingContext2D) {
         const f = 3;
+        const self = this;
 
         ctx.save();
         if (debugging) {
@@ -666,9 +694,9 @@ class Car extends GameElement {
 
                 ctx.fillStyle = color;
                 ctx.beginPath();
-                move_to(points[0][0], points[0][1]);
+                move_to(points[0][0] * this.direction, points[0][1]);
                 for (var i = 1; i < points.length; i++) {
-                    line_to(points[i][0], points[i][1]);
+                    line_to(points[i][0] * this.direction, points[i][1]);
                 }
                 ctx.fill();
             }
@@ -708,8 +736,8 @@ class Car extends GameElement {
                 this._draw_circle(new Vector2D(x, y), f, 5, "black", ctx);
             }
             
-            draw_tire(-12, 8);
-            draw_tire(12, 8);
+            draw_tire(-12 * this.direction, 8);
+            draw_tire(12 * this.direction, 8);
         }
 
         ctx.restore();
@@ -779,7 +807,10 @@ class GameSet extends Entity {
     }
     public replace_element(element: Entity): GameSet {
         const physical = element as PhysicalObject;
-        assert_not(physical.lines.some(line => {let d = line.rotate(physical.angle).offset(physical.position); return d.start_position.y > 100 || d.end_position.y > 100;}), "object overlap bottom ground");
+        // assert_not(physical.lines.some(line => {let d = line.rotate(physical.angle).offset(physical.position); return d.start_position.y > 100 || d.end_position.y > 100;}), "object overlap bottom ground");
         return this.copy({ contents: this.contents.set(element.id, element) });
     }
+    public get_objects_except(element: Entity): Immutable.List<Entity> {
+        return this.contents.entrySeq().filter(([k, v]) => k != element.id).map(([k, v]) => v).toList();
+    } 
 }

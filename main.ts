@@ -22,10 +22,11 @@ const drawing_scale = 6;
 const eps = 0.0000001;
 let debugging = false;
 let paused = false;
-const time_interval = 15;
-const time_step = 2.2 * time_interval;
-const general_elasticity = 0.8;
-const tire_elasticity = 0.1;
+const frames_per_second = 50;
+const time_step = 1000 / frames_per_second;
+const time_scale = 2.3;
+const general_elasticity = 0.7;
+const tire_elasticity = 0.05;
 interface IntersectionResult {
     intersection_exists: boolean;
     intersection_point?: Vector2D;
@@ -81,33 +82,35 @@ function get_line_constants(line: Line) {
 }
 
 const key_pressed = new Map([
-    ['left', 0],
-    ['right', 0],
-    ['up', 0],
-    ['down', 0],
-]);
+        ['left', 0],
+        ['right', 0],
+        ['up', 0],
+        ['down', 0],
+    ]);
 
 $(document).ready(() => {
     const body = $('body');
     Rx.Observable.fromEvent(body, 'keydown')
-        .map((e: KeyboardEvent) => keyDefs.get(e.keyCode))
+        .filter((e: KeyboardEvent) => keyDefs.has(e.keyCode))
+        .map((e: KeyboardEvent) => {e.preventDefault(); return keyDefs.get(e.keyCode)})
         .subscribe(e => key_pressed.set(e, 1));
 
     Rx.Observable.fromEvent(body, 'keyup')
-        .map((e: KeyboardEvent) => keyDefs.get(e.keyCode))
+        .filter((e: KeyboardEvent) => keyDefs.has(e.keyCode))
+        .map((e: KeyboardEvent) => {e.preventDefault(); return keyDefs.get(e.keyCode)})
         .subscribe(e => key_pressed.set(e, 0));
 
     const canvas = document.getElementById("canvas") as HTMLCanvasElement;
     const ctx = canvas.getContext("2d");
 
-    const $time = Rx.Observable.interval(time_interval)
+    const $time = Rx.Observable.interval(time_step)
         .timeInterval();
 
     $time.scan((game_set, time_unit) => {
             if (paused) {
                 return game_set;
             } else {
-                return game_set.updated(time_step);
+                return game_set.updated(time_step * time_scale);
             }
         }, new GameSet(true))
         .subscribe((game_set: GameSet) => {
@@ -659,7 +662,7 @@ class Car extends GameElement {
         const nitro_active = car_after_flip.nitro_state == "active";
 
         const nitro_vector = car_after_flip.nitro.normalize().multiply(nitro_active ? 1 : 0).rotate(this.angle).reverse().multiply(20);
-        const jump_vector = car_after_flip.jumper.normalize().multiply(car_jumping ? 1 : 0).rotate(this.angle).reverse().multiply(10);
+        const jump_vector = car_after_flip.jumper.normalize().multiply(car_jumping ? 1 : 0).rotate(this.angle).reverse().multiply(15);
         const angular_force = (key_pressed.get("left") * -1 + key_pressed.get("right")) * (car_flying ? 4 : 0);
 
         const advanced_car: Car = car_after_all_input.copy({

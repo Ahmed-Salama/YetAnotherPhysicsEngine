@@ -368,12 +368,12 @@ class PhysicalObject extends Entity {
         const after_position_and_rotation = this._translate(vector);
         return after_position_and_rotation.add_vector(new Vector2D(-camera_position.x + canvas_size / (2 * drawing_scale), 0));
     }
-    protected _stroke_line(start: Vector2D, end: Vector2D, color: string, ctx: CanvasRenderingContext2D) {
+    protected _stroke_line(start: Vector2D, end: Vector2D, color: string, ctx: CanvasRenderingContext2D, camera_position: Vector2D) {
         ctx.save();
         ctx.strokeStyle = color;
         ctx.beginPath();
-        const to_draw_start_position = this._translate(start);
-        const to_draw_end_position = this._translate(end);
+        const to_draw_start_position = this._camera_translate(start, camera_position);
+        const to_draw_end_position = this._camera_translate(end, camera_position);
         ctx.moveTo(drawing_scale * to_draw_start_position.x, drawing_scale * to_draw_start_position.y);
         ctx.lineTo(drawing_scale * to_draw_end_position.x, drawing_scale * to_draw_end_position.y);
         ctx.stroke();
@@ -393,21 +393,21 @@ class PhysicalObject extends Entity {
         
         const self = this;
         this.lines.forEach(line => {
-            self._stroke_line(line.start_position, line.end_position, "black", ctx);
+            self._stroke_line(line.start_position, line.end_position, "black", ctx, camera_position);
 
             const start_to_end_vector = line.start_position.to(line.end_position);
             const mid_point = start_to_end_vector.normalize().multiply(start_to_end_vector.length() / 2);
             const normal_start_position = line.start_position.add_vector(mid_point);
             const normal_end_position = line.start_position.add_vector(mid_point).add_vector(line.normal());
-            self._stroke_line(normal_start_position, normal_end_position, "black", ctx);
+            self._stroke_line(normal_start_position, normal_end_position, "black", ctx, camera_position);
         });
 
         if (!this.is_ground) {
             this._draw_circle(this.center_of_mass, 1, 2, "black", ctx, camera_position);
         }
 
-        this._stroke_line(Vector2D.empty, this.velocity, "green", ctx);
-        this._stroke_line(Vector2D.empty, new Vector2D(8 * this.angular_velocity, 0), "orange", ctx);
+        this._stroke_line(Vector2D.empty, this.velocity, "green", ctx, camera_position);
+        this._stroke_line(Vector2D.empty, new Vector2D(8 * this.angular_velocity, 0), "orange", ctx, camera_position);
 
         ctx.restore();
     }

@@ -8,7 +8,8 @@ const keyDefs = new Map([
     [40, 'down'],
     [32, 'space'],
     [65, 'A'],
-    [83, 'S']
+    [83, 'S'],
+    [68, 'D']
 ]);
 const canvas_size = 1200;
 const canvas_offset_x = 50;
@@ -22,11 +23,11 @@ const drawing_scale = 6;
 const eps = 0.0000001;
 let debugging = false;
 let paused = false;
-const frames_per_second = 50;
+const frames_per_second = 60;
 const time_step = 1000 / frames_per_second;
 const time_scale = 2.3;
 const general_elasticity = 0.7;
-const tire_elasticity = 0.05;
+const tire_elasticity = 0.1;
 // colors
 const ground_pattern_color = "#212F3D";
 const clear_rect_color = "#EAECEE";
@@ -241,6 +242,9 @@ class Vector2D extends Entity {
     public flipX(): Vector2D {
         return this.copy({ x: -this.x });
     }
+    public flipY(): Vector2D {
+        return this.copy({ y: -this.y });
+    }
     public resetX(): Vector2D {
         return this.copy({ x: 0 });
     }
@@ -300,6 +304,9 @@ class Line extends Entity {
     public flipX(): Line {
         return this.copy({ start_position: this.start_position.flipX(), end_position: this.end_position.flipX() }) as Line;
     }
+    public flipY(): Line {
+        return this.copy({ start_position: this.start_position.flipY(), end_position: this.end_position.flipY() }) as Line;
+    }
     public toString() {
         return "{start: " + this.start_position.toString() + ", end: " + this.end_position.toString() + "}"; 
     }
@@ -310,6 +317,7 @@ interface CollisionResult {
     delta_position: Vector2D;
     delta_angle: number;
 }
+const gravity_vector = new Vector2D(0, 9.8);
 class PhysicalObject extends Entity {
     public position: Vector2D;
     public velocity: Vector2D;
@@ -343,13 +351,13 @@ class PhysicalObject extends Entity {
         this.lines = Immutable.List();
     }
     public updated(time_unit: number): PhysicalObject {
-        const gravity_vector = new Vector2D(0, 9.8);
-        const velocity_air_drag_vector = this.velocity.normalize().reverse().multiply(Math.pow(this.velocity.length(), 2) * 0.01 * time_unit / 1000);
+        const new_velocity = this.velocity.add_vector(gravity_vector.multiply(time_unit * 1.0 / 1000));
+        const velocity_air_drag_vector = new_velocity.normalize().reverse().multiply(Math.pow(new_velocity.length(), 2) * 0.02 * time_unit / 1000);
         const angular_velocity_air_drag = (this.angular_velocity > 0 ? -1 : 1) * Math.pow(this.angular_velocity, 2) * 0.7 * time_unit / 1000;
 
         return this.copy({
             position: this.position.add_vector(this.velocity.multiply(time_unit * 1.0 / 1000)),
-            velocity: this.velocity.add_vector(gravity_vector.multiply(time_unit * 1.0 / 1000)).add_vector(velocity_air_drag_vector),
+            velocity: new_velocity.add_vector(velocity_air_drag_vector),
             angle: this.angle + this.angular_velocity * time_unit * 1.0 / 1000,
             angular_velocity: this.angular_velocity + angular_velocity_air_drag});
     }
@@ -479,6 +487,7 @@ class PhysicalObject extends Entity {
                 const impulse = - impulse_weight * (1 + elasticity) * v_ap1.dot(normal) / (1.0/m_a + Math.pow(r_ap.cross(normal), 2)/i_a);
 
                 const d_v_a = normal.multiply(impulse / m_a);
+                console.log(v_a1.toString() + ": " + impulse_weight + " w " + d_v_a.toString());
                 const d_w_a = r_ap.cross(normal.multiply(impulse)) / i_a;
 
                 const new_delta_p = delta_p.rotate(-normal.angle()).resetX().rotate(normal.angle());
@@ -488,6 +497,7 @@ class PhysicalObject extends Entity {
 
             const delta = collide_rec(Vector2D.empty, 0, delta_position, collision.intersections);
             const still_colliding = this.move(delta.d_p).calculate_collision(other).collided();
+            console.log("reflect " + delta.d_v_a.toString() + " - " + this.velocity.add_vector(delta.d_v_a).toString());
 
             return {"game_set": game_set.replace_element(this.copy({velocity: this.velocity.add_vector(delta.d_v_a), angular_velocity: this.angular_velocity + delta.d_w_a})),
                     "delta_position": still_colliding ? Vector2D.empty : delta.d_p,
@@ -605,8 +615,8 @@ class Ball extends GameElement {
     protected _define_attributes() {
         super._define_attributes();
         this.radius = 10;
-        this.position = new Vector2D(60, 20);
-        this.velocity = new Vector2D(10, 0);
+        this.position = new Vector2D(80, 50);
+        this.velocity = new Vector2D(0, 0);
         this.mass = 4;
         this.name = "ball";
     }
@@ -644,27 +654,35 @@ class Ball extends GameElement {
     }
 }
 
+const jump_timer_duration = 8;
+
 class Car extends GameElement {
     public flying_state: string;
     public jump_state: string;
+    public jump_timer: number;
     public nitro_state: string;
-    public flip_state: string;
+    public flip_x_state: string;
+    public flip_y_state: string;
     public nitro: Vector2D;
     public jumper: Vector2D;
-    public direction: number;
+    public direction_x: number;
+    public direction_y: number;
 
     constructor(initialize: boolean) {
         super(initialize);
     }
     protected _define_attributes() {
         super._define_attributes();
-        this.position = new Vector2D(60, 85);
+        this.position = new Vector2D(60, 55);
         this.mass = 40;
         this.flying_state = "flying";
         this.jump_state = "station";
+        this.jump_timer = 0;
         this.nitro_state = "idle";
-        this.flip_state = "idle";
-        this.direction = 1;
+        this.flip_x_state = "idle";
+        this.flip_y_state = "idle";
+        this.direction_x = 1;
+        this.direction_y = 1;
         this.name = "car";
     }
     protected _build_lines() {
@@ -695,44 +713,66 @@ class Car extends GameElement {
             lines: this.lines.map(line => line.flipX()).toList(),
             nitro: this.nitro.flipX(),
             jumper: this.jumper.flipX(),
-            direction: this.direction * -1
+            direction_x: this.direction_x * -1
+        });
+    }
+    protected _mirrorY(): Car {
+        return this.copy({
+            lines: this.lines.map(line => line.flipY()).toList(),
+            nitro: this.nitro.flipY(),
+            jumper: this.jumper.flipY(),
+            direction_y: this.direction_y * -1
         });
     }
     public update_game_set(time_unit: number, game_set: GameSet): GameSet{
         const self = this;
-        const car_after_flip_input: Car = key_pressed.get("S") ?
-            (this.flip_state == "idle" ?
-                self.copy({ flip_state: "active" }) :
+        const car_after_flip_x_input: Car = key_pressed.get("S") ?
+            (this.flip_x_state == "idle" ?
+                self.copy({ flip_x_state: "active" }) :
                 self) :
-            (this.flip_state == "idle" ?
+            (this.flip_x_state == "idle" ?
                 self :
-                self.copy({ flip_state: "idle" }));
+                self.copy({ flip_x_state: "idle" }));
 
-        const car_flipping = self.flip_state == "idle" && car_after_flip_input.flip_state == "active";
-        const car_after_flip = car_flipping  ? car_after_flip_input._mirrorX() : car_after_flip_input;
+        const car_flipping_x = self.flip_x_state == "idle" && car_after_flip_x_input.flip_x_state == "active";
+        const car_after_flip_x = car_flipping_x  ? car_after_flip_x_input._mirrorX() : car_after_flip_x_input;
 
-        const advanced_car_gravity: Car = car_after_flip.updated(time_unit) as Car;
+        const car_after_flip_y_input: Car = key_pressed.get("D") ?
+            (this.flip_y_state == "idle" ?
+                car_after_flip_x.copy({ flip_y_state: "active" }) :
+                car_after_flip_x) :
+            (this.flip_y_state == "idle" ?
+                car_after_flip_x :
+                car_after_flip_x.copy({ flip_y_state: "idle" }));
+
+        const car_flipping_y = self.flip_y_state == "idle" && car_after_flip_y_input.flip_y_state == "active";
+        const car_after_flip_y = car_flipping_y  ? car_after_flip_y_input._mirrorY() : car_after_flip_y_input;
+
+        const car_after_all_flips = car_after_flip_y;
+
+        const advanced_car_gravity: Car = car_after_all_flips.updated(time_unit) as Car;
 
         const cat_after_nitro_input: Car = advanced_car_gravity.copy({ nitro_state: key_pressed.get("up") ? "active" : "idle" });
         const car_after_jump_input: Car = key_pressed.get("A") ?
             (this.jump_state == "station" ?
-                cat_after_nitro_input.copy({ flying_state: "flying", jump_state: "jumping" }) :
-                cat_after_nitro_input) :
+                cat_after_nitro_input.copy({ flying_state: "flying", jump_state: "jumping", jump_timer: jump_timer_duration }) :
+                cat_after_nitro_input.copy({ jump_timer: Math.max(0, cat_after_nitro_input.jump_timer - 1) })) :
             (this.jump_state == "station" ?
-                cat_after_nitro_input :
-                cat_after_nitro_input.copy({ jump_state: "station" }));
+                cat_after_nitro_input.copy({ jump_timer: Math.max(0, cat_after_nitro_input.jump_timer - 1) }) :
+                cat_after_nitro_input.copy({ jump_state: "station", jump_timer: Math.max(0, cat_after_nitro_input.jump_timer - 1) }));
         const car_after_all_input = car_after_jump_input;
 
-        const car_jumping = car_after_flip.jump_state == "station" && car_after_all_input.jump_state == "jumping";
+        const car_jumping_index = car_after_all_input.jump_timer;
+        const car_jumping = car_after_all_input.jump_timer > 0;
         const car_flying = car_after_all_input.flying_state == "flying";
-        const nitro_active = car_after_flip.nitro_state == "active";
+        const nitro_active = car_after_all_flips.nitro_state == "active";
 
-        const nitro_vector = car_after_flip.nitro.normalize().multiply(nitro_active ? 1 : 0).rotate(this.angle).reverse().multiply(20);
-        const jump_vector = car_after_flip.jumper.normalize().multiply(car_jumping ? 1 : 0).rotate(this.angle).reverse().multiply(15);
+        const nitro_vector = car_after_all_flips.nitro.normalize().multiply(nitro_active ? 1 : 0).rotate(this.angle).reverse().multiply(20);
+        const jump_vector = car_after_all_flips.jumper.normalize().multiply(car_jumping ? 1 : 0).rotate(this.angle).reverse().multiply(20);
         const angular_force = (key_pressed.get("left") * -1 + key_pressed.get("right")) * (car_flying ? 4 : 0);
 
         const advanced_car: Car = car_after_all_input.copy({
-            velocity: car_after_all_input.velocity.add_vector(nitro_vector.multiply(time_unit * 1.0 / 1000)).add_vector(jump_vector),
+            velocity: car_after_all_input.velocity.add_vector(nitro_vector.multiply(time_unit * 1.0 / 1000)).add_vector(jump_vector.multiply(1.0 / Math.pow(2, jump_timer_duration - car_jumping_index + 1))),
             angular_velocity: car_after_all_input.angular_velocity + angular_force * time_unit * 1.0 / 1000
         });
 
@@ -763,9 +803,9 @@ class Car extends GameElement {
 
                 ctx.fillStyle = color;
                 ctx.beginPath();
-                move_to(points[0][0] * this.direction, points[0][1]);
+                move_to(points[0][0] * this.direction_x, points[0][1] * this.direction_y);
                 for (var i = 1; i < points.length; i++) {
-                    line_to(points[i][0] * this.direction, points[i][1]);
+                    line_to(points[i][0] * this.direction_x, points[i][1] * this.direction_y);
                 }
                 ctx.fill();
             }
@@ -805,8 +845,8 @@ class Car extends GameElement {
                 this._draw_circle(new Vector2D(x, y), f, 5, "black", ctx);
             }
             
-            draw_tire(-12 * this.direction, 8);
-            draw_tire(12 * this.direction, 8);
+            draw_tire(-12 * this.direction_x, 8 * this.direction_y);
+            draw_tire(12 * this.direction_x, 8 * this.direction_y);
         }
 
         ctx.restore();

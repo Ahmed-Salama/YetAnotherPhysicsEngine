@@ -25,7 +25,7 @@ let debugging = false;
 let paused = false;
 const frames_per_second = 60;
 const time_step = 1000 / frames_per_second;
-const time_scale = 2.3;
+const time_scale = 2.2;
 const general_elasticity = 0.7;
 const tire_elasticity = 0.1;
 // colors
@@ -353,7 +353,7 @@ class PhysicalObject extends Entity {
     public updated(time_unit: number): PhysicalObject {
         const new_velocity = this.velocity.add_vector(gravity_vector.multiply(time_unit * 1.0 / 1000));
         const velocity_air_drag_vector = new_velocity.normalize().reverse().multiply(Math.pow(new_velocity.length(), 2) * 0.02 * time_unit / 1000);
-        const angular_velocity_air_drag = (this.angular_velocity > 0 ? -1 : 1) * Math.pow(this.angular_velocity, 2) * 0.7 * time_unit / 1000;
+        const angular_velocity_air_drag = (this.angular_velocity > 0 ? -1 : 1) * Math.pow(this.angular_velocity, 2) * 0.74 * time_unit / 1000;
 
         return this.copy({
             position: this.position.add_vector(this.velocity.multiply(time_unit * 1.0 / 1000)),
@@ -363,6 +363,10 @@ class PhysicalObject extends Entity {
     }
     protected _translate(vector: Vector2D) {
         return this.position.add_vector(vector.rotate(this.angle));
+    }
+    protected _camera_translate(vector: Vector2D, camera_position: Vector2D) {
+        const after_position_and_rotation = this._translate(vector);
+        return after_position_and_rotation.add_vector(new Vector2D(-camera_position.x + canvas_size / (2 * drawing_scale), 0));
     }
     protected _stroke_line(start: Vector2D, end: Vector2D, color: string, ctx: CanvasRenderingContext2D) {
         ctx.save();
@@ -375,16 +379,16 @@ class PhysicalObject extends Entity {
         ctx.stroke();
         ctx.restore();
     }
-    protected _draw_circle(center: Vector2D, f: number, radius: number, color: string, ctx: CanvasRenderingContext2D) {
+    protected _draw_circle(center: Vector2D, f: number, radius: number, color: string, ctx: CanvasRenderingContext2D, camera_position: Vector2D) {
         ctx.save();
         ctx.fillStyle = color;
-        let to_draw_center = this._translate(center.multiply(1.0/f));
+        let to_draw_center = this._camera_translate(center.multiply(1.0/f), camera_position);
         ctx.beginPath();
         ctx.arc(drawing_scale * to_draw_center.x, drawing_scale * to_draw_center.y, radius, 0, 2 * Math.PI);
         ctx.fill();
         ctx.restore();
     };
-    public draw(ctx: CanvasRenderingContext2D) {
+    public draw(ctx: CanvasRenderingContext2D, camera_position: Vector2D) {
         ctx.save();
         
         const self = this;
@@ -399,7 +403,7 @@ class PhysicalObject extends Entity {
         });
 
         if (!this.is_ground) {
-            this._draw_circle(this.center_of_mass, 1, 2, "black", ctx);
+            this._draw_circle(this.center_of_mass, 1, 2, "black", ctx, camera_position);
         }
 
         this._stroke_line(Vector2D.empty, this.velocity, "green", ctx);
@@ -638,17 +642,17 @@ class Ball extends GameElement {
         const advanced_ball_original_position: Ball = advanced_ball.copy({ position: this.position, angle: this.angle }) as Ball;
         return advanced_ball_original_position.collideAll(advanced_ball.position.subtract(this.position), advanced_ball.angle - this.angle, game_set);
     }
-    public draw(ctx: CanvasRenderingContext2D) {
+    public draw(ctx: CanvasRenderingContext2D, camera_position: Vector2D) {
         ctx.save();
         if (debugging) {
             ctx.strokeStyle = "blue";
-            super.draw(ctx);
+            super.draw(ctx, camera_position);
         } else {
-            this._draw_circle(Vector2D.empty, 1, drawing_scale * this.radius, "#21618C", ctx);
-            this._draw_circle(Vector2D.empty, 1, drawing_scale * 0.9 * this.radius, "#3498DB", ctx);
-            this._draw_circle(Vector2D.empty, 1, drawing_scale * 0.8 * this.radius, "#5DADE2", ctx);
-            this._draw_circle(Vector2D.empty, 1, drawing_scale * 0.6 * this.radius, "#85C1E9", ctx);
-            this._draw_circle(Vector2D.empty, 1, drawing_scale * 0.2 * this.radius, "#AED6F1", ctx);
+            this._draw_circle(Vector2D.empty, 1, drawing_scale * this.radius, "#21618C", ctx, camera_position);
+            this._draw_circle(Vector2D.empty, 1, drawing_scale * 0.9 * this.radius, "#3498DB", ctx, camera_position);
+            this._draw_circle(Vector2D.empty, 1, drawing_scale * 0.8 * this.radius, "#5DADE2", ctx, camera_position);
+            this._draw_circle(Vector2D.empty, 1, drawing_scale * 0.6 * this.radius, "#85C1E9", ctx, camera_position);
+            this._draw_circle(Vector2D.empty, 1, drawing_scale * 0.2 * this.radius, "#AED6F1", ctx, camera_position);
         }
         ctx.restore();
     }
@@ -673,7 +677,7 @@ class Car extends GameElement {
     }
     protected _define_attributes() {
         super._define_attributes();
-        this.position = new Vector2D(60, 55);
+        this.position = new Vector2D(60, 85);
         this.mass = 40;
         this.flying_state = "flying";
         this.jump_state = "station";
@@ -689,7 +693,6 @@ class Car extends GameElement {
         super._build_lines();
 
         const f = 3;
-
         const points = [[20, 10], [20, 4],
                         [-2, -7], [-20, -10],
                         [-20, 10], [-16, 14], [16, 14]];
@@ -779,24 +782,24 @@ class Car extends GameElement {
         const advanced_car_original_position = advanced_car.copy<Car>({ position: this.position, angle: this.angle });
         return advanced_car_original_position.collideAll(advanced_car.position.subtract(this.position), advanced_car.angle - this.angle, game_set);
     }
-    public draw(ctx: CanvasRenderingContext2D) {
+    public draw(ctx: CanvasRenderingContext2D, camera_position: Vector2D) {
         const f = 3;
         const self = this;
 
         ctx.save();
         if (debugging) {
             ctx.strokeStyle = "red";
-            super.draw(ctx);
+            super.draw(ctx, camera_position);
 
-            this._draw_circle(this.nitro, 1, 6, "violet", ctx);
-            this._draw_circle(this.jumper, 1, 6, this.jump_state == "station" ? "yellow" : "orange", ctx);
+            this._draw_circle(this.nitro, 1, 6, "violet", ctx, camera_position);
+            this._draw_circle(this.jumper, 1, 6, this.jump_state == "station" ? "yellow" : "orange", ctx, camera_position);
         } else {
             const line_to = (x: number, y: number) => {
-                const vector = this._translate(new Vector2D(x / f, y / f));
+                const vector = this._camera_translate(new Vector2D(x / f, y / f), camera_position);
                 return ctx.lineTo(drawing_scale * vector.x, drawing_scale * vector.y);
             }
             const move_to = (x: number, y: number) => {
-                const vector = this._translate(new Vector2D(x / f, y / f));
+                const vector = this._camera_translate(new Vector2D(x / f, y / f), camera_position);
                 return ctx.moveTo(drawing_scale * vector.x, drawing_scale * vector.y);
             }
             const draw_polygon = (points: number[][], color: string) => {
@@ -840,9 +843,9 @@ class Car extends GameElement {
             draw_polygon([[-4, -6], [-10, -5], [-14, -4], [-5, -4]], "#922B21");
 
             const draw_tire = (x: number, y: number) => {
-                this._draw_circle(new Vector2D(x, y), f, 11, "gray", ctx);
-                this._draw_circle(new Vector2D(x, y), f, 7, "lightgray", ctx);
-                this._draw_circle(new Vector2D(x, y), f, 5, "black", ctx);
+                this._draw_circle(new Vector2D(x, y), f, 11, "gray", ctx, camera_position);
+                this._draw_circle(new Vector2D(x, y), f, 7, "lightgray", ctx, camera_position);
+                this._draw_circle(new Vector2D(x, y), f, 5, "black", ctx, camera_position);
             }
             
             draw_tire(-12 * this.direction_x, 8 * this.direction_y);
@@ -872,10 +875,10 @@ class Ground extends GameElement {
 
         this.outer_lines = Immutable.List();
 
-        const padding = 5;
+        const padding = 10;
         this.points = Immutable.List([[0+padding, 0+padding], [200 - padding, 0+padding], [200-padding, 100-padding], [0+padding, 100-padding]]);
         const offsets = Immutable.List([[-1, -1], [1, -1], [1, 1], [-1, 1]]);
-        const offset = 10;
+        const offset = 4;
         this.outer_points = this.points.zip(offsets).map(([p, o]) => [p[0] + o[0] * offset, p[1] + o[1] * offset]).toList();
 
         const points_array = this.points.toArray();
@@ -897,22 +900,23 @@ class Ground extends GameElement {
     public update_game_set(_: number, game_set: GameSet) {
         return game_set;
     }
-    public draw(ctx: CanvasRenderingContext2D) {
+    public draw(ctx: CanvasRenderingContext2D, camera_position: Vector2D) {
         const f = 1;
         const self = this;
 
         ctx.save();
         const line_to = (x: number, y: number) => {
-            const vector = this._translate(new Vector2D(x / f, y / f));
+            const vector = this._camera_translate(new Vector2D(x / f, y / f), camera_position);
             return ctx.lineTo(drawing_scale * vector.x, drawing_scale * vector.y);
         }
         const move_to = (x: number, y: number) => {
-            const vector = this._translate(new Vector2D(x / f, y / f));
+            const vector = this._camera_translate(new Vector2D(x / f, y / f), camera_position);
             return ctx.moveTo(drawing_scale * vector.x, drawing_scale * vector.y);
         }
         ctx.beginPath();
         const draw_polygon_pattern = (points: number[][]) => {
-            ctx.fillStyle = ctx.createPattern(patter_canvas, 'repeat');
+            // ctx.fillStyle = ctx.createPattern(patter_canvas, 'repeat');
+            ctx.fillStyle = ground_pattern_color;
             move_to(points[0][0], points[0][1]);
             for (var i = 1; i < points.length; i++) {
                 line_to(points[i][0], points[i][1]);
@@ -937,9 +941,23 @@ class Ground extends GameElement {
         ctx.restore();
     }
 }
+class Camera extends Entity {
+    public attached_object_id: number;
 
+    constructor(initialize: boolean) {
+        super(initialize);
+    }
+    public attach(object: PhysicalObject): Camera {
+        return this.copy({attached_object_id: object.id});
+    }
+    public get_coordinates(game_set: GameSet): Vector2D {
+        const attached_object = game_set.contents.get(this.attached_object_id) as PhysicalObject;
+        return attached_object.position;
+    }
+}
 class GameSet extends Entity {
     public contents: Immutable.Map<number, Entity>;
+    public camera: Camera;
 
     constructor(initialize: boolean) {
         super(initialize);
@@ -956,6 +974,9 @@ class GameSet extends Entity {
             [ground.id, ground],
             [ball.id, ball],
         ]);
+
+        this.camera = new Camera(true);
+        this.camera = this.camera.attach(my_car);
     }
     public updated(time_unit: number) {
         const updatedRec = (game_set: GameSet, remaining: Immutable.List<number>): GameSet => {
@@ -969,10 +990,13 @@ class GameSet extends Entity {
             return updatedRec(new_game_set, remaining.shift());
         }
 
-        return updatedRec(this, this.contents.entrySeq().filter(([k, v]) => !v.is_ground).map(([k, v]) => k).toList());
+        const updated_game_set = updatedRec(this, this.contents.entrySeq().filter(([k, v]) => !v.is_ground).map(([k, v]) => k).toList());
+
+        return updated_game_set;
     }
     public draw(ctx: CanvasRenderingContext2D) {
-        this.contents.valueSeq().forEach((o: GameElement) => o.draw(ctx));
+        const self = this;
+        this.contents.valueSeq().forEach((o: GameElement) => o.draw(ctx, self.camera.get_coordinates(self)));
     }
     public replace_element(element: Entity): GameSet {
         const physical = element as PhysicalObject;

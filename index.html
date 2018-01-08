@@ -4,7 +4,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/rxjs/4.0.6/rx.all.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/immutable/3.7.3/immutable.min.js"></script>
   <script src="https://code.jquery.com/jquery-3.1.0.js"></script>
-  <script src="main.js"></script>
+  <script src="dist/bundle.js"></script>
 
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width">
@@ -20,8 +20,8 @@
         </tr>
         <tr>
             <td>
-                <input type="button" onclick="debugging=!debugging" value="Toggle debugging" />
-                <input type="button" onclick="paused=!paused" value="Pause simulation" />
+                <input id="toggleDebuggerBtn" type="button" value="Toggle debugging" />
+                <input id="togglePauseBtn" type="button" value="Pause simulation" />
             </td>
         </tr>
         <tr>

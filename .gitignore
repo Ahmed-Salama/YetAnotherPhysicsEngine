@@ -1,6 +1,3 @@
-# Transpiled files
-*.js
-
 # Logs
 logs
 *.log
@@ -16,4 +13,7 @@ jspm_packages/
 
 # Optional npm cache directory
 .npm
+
+# Output directory
+dist/
 

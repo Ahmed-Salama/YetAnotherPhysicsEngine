@@ -31,7 +31,6 @@ $(document).ready(() => {
       }
     }, new GameSet(true))
     .subscribe((game_set: GameSet) => {
-      // clear rect
       ctx.save();
       ctx.fillStyle = Constants.clear_rect_color;
       ctx.fillRect(0, 0, Constants.canvas_size, Constants.canvas_size);

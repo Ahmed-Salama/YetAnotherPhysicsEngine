@@ -1,10 +1,11 @@
 import Constants from './constants'
-import GameElement from './game_element'
 import GameSet from './game_set'
 import Vector2D from './vector2d'
 import {Line} from './line'
+import PhysicalObject from './physical_object';
+import GameElement from './game_element';
 
-export default class Ball extends GameElement {
+export default class Ball extends PhysicalObject {
   public radius: number;
 
   constructor(initialize: boolean) {

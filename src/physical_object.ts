@@ -5,10 +5,11 @@ import Entity from './entity'
 import GameSet from './game_set'
 import Vector2D from './vector2d'
 import {Intersection, Line} from './line'
+import GameElement from './game_element';
 
 const gravity_vector = new Vector2D(0, 9.8);
 
-export default class PhysicalObject extends Entity {
+export default class PhysicalObject extends GameElement {
   public position: Vector2D;
   public velocity: Vector2D;
   public angle: number;
@@ -332,11 +333,11 @@ export default class PhysicalObject extends Entity {
       const delta = collide_rec(Vector2D.empty, 0, Vector2D.empty, 0, delta_position,
                                 collision.intersections);
 
-      const updated_self = this.copy({
+      const updated_self = this.copy<PhysicalObject>({
           velocity: this.velocity.add_vector(delta.d_v_a),
           angular_velocity: this.angular_velocity + delta.d_w_a
       });
-      const updated_other = other.copy({
+      const updated_other = other.copy<PhysicalObject>({
           velocity: other.velocity.add_vector(delta.d_v_b),
           angular_velocity: other.angular_velocity + delta.d_w_b
       });

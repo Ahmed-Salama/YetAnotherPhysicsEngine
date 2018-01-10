@@ -7,8 +7,8 @@ import Ground from './ground'
 import PhysicalObject from './physical_object'
 import Vector2D from './vector2d';
 
-export default class GameSet extends Entity {
-  public contents: Immutable.Map<number, Entity>;
+export default class GameSet extends GameElement {
+  public contents: Immutable.Map<number, PhysicalObject>;
   public camera: Camera;
 
   constructor(initialize: boolean) {
@@ -41,14 +41,14 @@ export default class GameSet extends Entity {
             .toList();
 
     return all_objects_except_ground.reduce(
-      (current_game_set, object_id) => current_game_set._updated_per_object(time_unit, current_game_set.contents.get(object_id) as GameElement),
+      (current_game_set, object_id) => current_game_set._updated_per_object(time_unit, current_game_set.contents.get(object_id)),
       this as GameSet
     ); 
   }
 
-  private _updated_per_object(time_unit: number, object: GameElement): GameSet {
-    const next_state = object.updated(time_unit);
-    const next_state_resetted_translation = next_state.copy({ position: object.position, angle: object.angle });
+  private _updated_per_object(time_unit: number, object: PhysicalObject): GameSet {
+    const next_state = object.updated(time_unit) as PhysicalObject;
+    const next_state_resetted_translation = next_state.copy<PhysicalObject>({ position: object.position, angle: object.angle });
 
     const delta_position = next_state.position.subtract(object.position);
     const delta_angle = next_state.angle - object.angle;
@@ -85,10 +85,10 @@ export default class GameSet extends Entity {
       },
       new DeltaState(delta_position, delta_angle, this.replace_element(next_state_resetted_translation)));
     
-      const updated_self = final_delta.game_set.contents.get(object.id) as PhysicalObject;
+      const updated_self = final_delta.game_set.contents.get(object.id);
       const updated_self_with_delta = updated_self.move(final_delta.position).rotate(final_delta.angle);
       const must_reset = final_delta.game_set.get_objects_except(object).some(other =>
-          updated_self_with_delta.calculate_collision(other as PhysicalObject).collided());
+          updated_self_with_delta.calculate_collision(other).collided());
       
       return must_reset ? final_delta.game_set : final_delta.game_set.replace_element(updated_self_with_delta);
   }
@@ -97,16 +97,16 @@ export default class GameSet extends Entity {
       const self = this;
       this.contents
         .valueSeq()
-        .forEach((o: GameElement) => o.draw(ctx, self.camera.get_coordinates(self)));
+        .forEach((o) => o.draw(ctx, self.camera.get_coordinates(self)));
   }
 
-  public replace_element(element: Entity): GameSet {
+  public replace_element(element: PhysicalObject): GameSet {
     //   const physical = element as PhysicalObject;
       // assert_not(physical.lines.some(line => {let d = line.rotate(physical.angle).offset(physical.position); return d.start_position.y > 100 || d.end_position.y > 100;}), "object overlap bottom ground");
       return this.copy({ contents: this.contents.set(element.id, element) });
   }
 
-  public get_objects_except(element: Entity): Immutable.List<Entity> {
+  public get_objects_except(element: PhysicalObject): Immutable.List<PhysicalObject> {
       return this.contents
         .entrySeq()
         .filter(([k, v]) => k != element.id)

@@ -1,10 +1,10 @@
 import Constants from './constants'
-import GameElement from './game_element'
 import GameSet from './game_set'
 import Vector2D from './vector2d'
 import {Line} from './line'
+import PhysicalObject from './physical_object';
 
-export default class Ground extends GameElement {
+export default class Ground extends PhysicalObject {
   public outer_lines: Immutable.List<Line>;
   public points: Immutable.List<Array<number>>;
   public outer_points: Immutable.List<Array<number>>;

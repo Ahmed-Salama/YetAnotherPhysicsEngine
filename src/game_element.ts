@@ -1,7 +1,7 @@
-import PhysicalObject from './physical_object'
 import GameSet from './game_set'
+import Entity from './entity';
 
-export default class GameElement extends PhysicalObject {
+export default class GameElement extends Entity {
   constructor(initialize: boolean) {
     super(initialize);
   }

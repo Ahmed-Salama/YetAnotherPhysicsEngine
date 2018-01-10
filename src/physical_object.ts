@@ -185,37 +185,6 @@ export default class PhysicalObject extends Entity {
     return new Collision(intersections);
   }
 
-  public collideAll(delta_position: Vector2D, delta_angle: number, game_set: GameSet): GameSet {
-    const self = this;
-    const collided_all_rec = (delta_position_rec: Vector2D, delta_angle_rec: number,
-                         game_set_rec: GameSet, remaining: Immutable.List<number>): GameSet => {
-      if (remaining.size == 0) {
-        const updated_self = game_set_rec.contents.get(self.id) as PhysicalObject;
-        const updated_self_with_delta =
-            updated_self.move(delta_position_rec).rotate(delta_angle_rec);
-        const must_reset = game_set_rec.get_objects_except(self).some(other =>
-            updated_self_with_delta.calculate_collision(other as PhysicalObject).collided());
-        
-        return must_reset ? game_set_rec : game_set_rec.replace_element(updated_self_with_delta);
-      }
-
-      const first_key = remaining.first();
-      const first_object = game_set_rec.contents.get(first_key) as PhysicalObject;
-      const updated_self = game_set_rec.contents.get(self.id) as PhysicalObject;
-
-      const collision_result = updated_self.collide(delta_position_rec, delta_angle_rec,
-                                                    first_object, game_set_rec);
-      const new_game_set = collision_result.game_set as GameSet;
-      const new_delta_position = collision_result.delta_position;
-      const new_delta_angle = collision_result.delta_angle;
-
-      return collided_all_rec(new_delta_position, new_delta_angle, new_game_set, remaining.shift());
-    }
-
-    return collided_all_rec(delta_position, delta_angle, game_set.replace_element(this),
-                            game_set.contents.keySeq().filter(o => o != this.id).toList());
-  }
-
   public collide(delta_position: Vector2D, delta_angle: number, other: PhysicalObject,
                  game_set: GameSet): CollisionResult {
     const advanced_self = this.move(delta_position).rotate(delta_angle);

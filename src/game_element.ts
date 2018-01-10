@@ -6,7 +6,7 @@ export default class GameElement extends PhysicalObject {
     super(initialize);
   }
 
-  public update_game_set(time_unit: number, game_set: GameSet): GameSet {
+  public updated(time_unit: number): GameElement {
     throw new Error('Unsupported method');
   }
 }

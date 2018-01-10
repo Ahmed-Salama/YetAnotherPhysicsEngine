@@ -165,10 +165,7 @@ export default class Car extends GameElement {
     });
   }
 
-  // public updated(time_unit: number): Car {
-  // }
-
-  public update_game_set(time_unit: number, game_set: GameSet): GameSet{
+  public updated(time_unit: number): GameElement {
     const start_state = this;
 
     const pipeline = Immutable.List([
@@ -179,14 +176,9 @@ export default class Car extends GameElement {
       { method: this._apply_rotation_input, parameters: [time_unit] },
       { method: this._updated_physics, parameters: [time_unit] }
     ]);
-    const final_state = pipeline.reduce((current_state, transformer) => transformer.method.call(current_state, transformer.parameters), start_state);
 
-    const advanced_car_original_position = final_state.copy<Car>({
-      position: this.position,
-      angle: this.angle
-    });
-    return advanced_car_original_position.collideAll(
-        final_state.position.subtract(this.position), final_state.angle - this.angle, game_set);
+    const final_state = pipeline.reduce((current_state, transformer) => transformer.method.call(current_state, transformer.parameters), start_state);
+    return final_state;
   }
 
   public draw(ctx: CanvasRenderingContext2D, camera_position: Vector2D) {

@@ -170,20 +170,21 @@ export default class PhysicalObject extends GameElement {
   }
 
   public calculate_collision(other: PhysicalObject) {
-    var intersections = Immutable.List<Intersection>();
     const self = this;
-    this.lines.forEach(l1 => {
+    var intersection_results = this.lines
+      .flatMap(l1 => {
         const projected_l1 = l1.rotate(self.angle).offset(self.position);
-        other.lines.forEach(l2 => {
+        return other.lines
+          .map(l2 => {
             const projected_l2 = l2.rotate(other.angle).offset(other.position);
-            const intersection_result = projected_l1.is_intersecting(projected_l2);
-            if (intersection_result.intersection_exists) {
-                intersections = intersections.push(intersection_result);
-            }
-        });
-    });
+            return projected_l1.is_intersecting(projected_l2);
+          });
+      });
 
-    return new Collision(intersections);
+    return new Collision(
+      intersection_results
+        .filter(x => x.intersection_exists)
+        .toList());
   }
 
   public collide(delta_position: Vector2D, delta_angle: number, other: PhysicalObject,

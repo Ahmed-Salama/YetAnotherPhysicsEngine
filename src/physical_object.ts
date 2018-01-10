@@ -2,7 +2,6 @@
 import {Collision, CollisionResult} from './collision'
 import Constants from './constants'
 import Entity from './entity'
-import GameSet from './game_set'
 import Vector2D from './vector2d'
 import {Intersection, Line} from './line'
 import GameElement from './game_element';
@@ -148,6 +147,7 @@ export default class PhysicalObject extends GameElement {
     this.lines.forEach(line => {
         self._stroke_line(line.start_position, line.end_position, "black", ctx, camera_position);
 
+        // normal vector calculations
         const start_to_end_vector = line.start_position.to(line.end_position);
         const mid_point = start_to_end_vector.normalize().multiply(
             start_to_end_vector.length() / 2);
@@ -185,169 +185,6 @@ export default class PhysicalObject extends GameElement {
       intersection_results
         .filter(x => x.intersection_exists)
         .toList());
-  }
-
-  public collide(delta_position: Vector2D, delta_angle: number, other: PhysicalObject,
-                 game_set: GameSet): CollisionResult {
-    const advanced_self = this.move(delta_position).rotate(delta_angle);
-
-    const collision = advanced_self.calculate_collision(other);
-    if (!collision.collided()) {
-      return {
-        game_set: game_set,
-        delta_position: delta_position,
-        delta_angle: delta_angle
-      };
-    }
-
-    // Impulse-based collision handling.
-    // Reference: https://www.myphysicslab.com/engine2D/collision-en.html#collision_physics
-    const impulse_weight = 1.0 / collision.intersections.size;
-
-    if (other.is_ground) {
-      const collide_rec = (delta_v_a: Vector2D, delta_w_a: number, delta_p: Vector2D,
-                           remaining_intersections: Immutable.List<Intersection>): any => {
-        if (remaining_intersections.size == 0) {
-          return {
-            d_v_a: delta_v_a,
-            d_w_a: delta_w_a,
-            d_p: delta_p,
-          };
-        }
-
-        const intersection = remaining_intersections.first();
-        const intersection_point = intersection.intersection_point;
-
-        const elasticity =
-            (intersection.self_line.elasticity + intersection.other_line.elasticity) / 2;
-    
-        const normal = intersection.other_line.normal(); 
-        const r_ap = advanced_self.position.add_vector(advanced_self.center_of_mass)
-                                           .to(intersection_point);
-
-        const v_a1 = advanced_self.velocity;
-        const w_a1 = advanced_self.angular_velocity;
-
-        const v_ap1 = v_a1.add_vector(r_ap.crossW(w_a1));
-
-        const m_a = advanced_self.mass;
-        const i_a = advanced_self.moment_of_inertia;
-
-        const impulse = - impulse_weight * (1 + elasticity) * v_ap1.dot(normal) /
-            (1.0/m_a + Math.pow(r_ap.cross(normal), 2)/i_a);
-
-        const d_v_a = normal.multiply(impulse / m_a);
-        if (Constants.debugging) {
-          console.log(v_a1.toString() + ": " + impulse_weight + " w " + d_v_a.toString());
-        }
-        const d_w_a = r_ap.cross(normal.multiply(impulse)) / i_a;
-
-        const new_delta_p = delta_p.rotate(-normal.angle()).resetX().rotate(normal.angle());
-
-        return collide_rec(delta_v_a.add_vector(d_v_a), delta_w_a + d_w_a, new_delta_p,
-                           remaining_intersections.shift());
-      }
-
-      const delta = collide_rec(Vector2D.empty, 0, delta_position, collision.intersections);
-      const still_colliding = this.move(delta.d_p).calculate_collision(other).collided();
-      if (Constants.debugging) {
-        console.log("reflect " + delta.d_v_a.toString() + " - " +
-                    this.velocity.add_vector(delta.d_v_a).toString());
-      }
-
-      return {
-        game_set: game_set.replace_element(this.copy({
-            velocity: this.velocity.add_vector(delta.d_v_a),
-            angular_velocity: this.angular_velocity + delta.d_w_a
-        })),
-        delta_position: still_colliding ? Vector2D.empty : delta.d_p,
-        delta_angle: 0
-      };
-    } else {
-      const collide_rec = (delta_v_a: Vector2D, delta_w_a: number, delta_v_b: Vector2D,
-                           delta_w_b: number, delta_p: Vector2D,
-                           remaining_intersections: Immutable.List<Intersection>): any => {
-        if (remaining_intersections.size == 0) {
-          return {
-            d_v_a: delta_v_a,
-            d_w_a: delta_w_a,
-            d_v_b: delta_v_b,
-            d_w_b: delta_w_b,
-            d_p: delta_p
-          };
-        }
-
-        const intersection = remaining_intersections.first();
-        const intersection_point = intersection.intersection_point;
-
-        const elasticity =
-            (intersection.self_line.elasticity + intersection.other_line.elasticity) / 2;
-
-        const normal = intersection.self_line.normal();
-
-        const v_a1 = advanced_self.velocity;
-        const v_b1 = other.velocity;
-
-        const r_ap = advanced_self.position.add_vector(advanced_self.center_of_mass)
-                                           .to(intersection_point);
-        const r_bp = other.position.add_vector(advanced_self.center_of_mass)
-                                   .to(intersection_point);
-
-        const w_a1 = advanced_self.angular_velocity;
-        const w_b1 = other.angular_velocity;
-
-        const v_ap1 = v_a1.add_vector(r_ap.crossW(w_a1));
-        const v_bp1 = v_b1.add_vector(r_bp.crossW(w_b1));
-
-        const v_ab1 = v_ap1.subtract(v_bp1);
-
-        const m_a = advanced_self.mass;
-        const m_b = other.mass;
-
-        const i_a = advanced_self.moment_of_inertia;
-        const i_b = other.moment_of_inertia;
-
-        const impulse = - impulse_weight * (1 + elasticity) * v_ab1.dot(normal) /
-            (1.0/m_a + 1.0/m_b + Math.pow(r_ap.cross(normal), 2)/i_a +
-            Math.pow(r_bp.cross(normal), 2)/i_b);
-
-        // alert("Self: " + advanced_self.position +
-            // "\nOther: " + other.position + 
-            // "\nIntersection: " + intersection_point + 
-            // "\nImpulse: " + impulse +
-            // "\nVelocity: " + v_ab1.dot(normal) +
-            // "\nTerm: " + (1.0/m_a + 1.0/m_b));
-
-        const d_v_a = normal.multiply(impulse / m_a);
-        const d_v_b = normal.multiply(-impulse / m_b);
-
-        const d_w_a = r_ap.cross(normal.multiply(impulse)) / i_a;
-        const d_w_b = -r_bp.cross(normal.multiply(impulse)) / i_b;
-
-        const new_delta_p = delta_p.rotate(-normal.angle()).resetX().rotate(normal.angle());
-
-        return collide_rec(delta_v_a.add_vector(d_v_a), delta_w_a + d_w_a,
-                           delta_v_b.add_vector(d_v_b), delta_w_b + d_w_b, new_delta_p,
-                           remaining_intersections.shift());
-      }
-
-      const delta = collide_rec(Vector2D.empty, 0, Vector2D.empty, 0, delta_position,
-                                collision.intersections);
-
-      const updated_self = this.copy<PhysicalObject>({
-          velocity: this.velocity.add_vector(delta.d_v_a),
-          angular_velocity: this.angular_velocity + delta.d_w_a
-      });
-      const updated_other = other.copy<PhysicalObject>({
-          velocity: other.velocity.add_vector(delta.d_v_b),
-          angular_velocity: other.angular_velocity + delta.d_w_b
-      });
-      const still_colliding = this.move(delta.d_p).calculate_collision(other).collided();
-
-      return {"game_set": game_set.replace_element(updated_self).replace_element(updated_other),
-              "delta_position": still_colliding ? Vector2D.empty : delta.d_p,
-              "delta_angle": 0};
-    }
   }
 
   public move(vector: Vector2D): PhysicalObject {

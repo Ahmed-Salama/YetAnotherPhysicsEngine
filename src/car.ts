@@ -79,86 +79,114 @@ export default class Car extends GameElement {
     });
   }
 
-  public update_game_set(time_unit: number, game_set: GameSet): GameSet{
-    const self = this;
-    const car_after_flip_x_input: Car = Constants.key_pressed.get("S") ?
+  private _apply_flip_x_input(): Car {
+    const after_flip_x_input: Car = Constants.key_pressed.get("S") ?
         (this.flip_x_state == "idle" ?
-            self.copy({ flip_x_state: "active" }) :
-            self) :
+            this.copy({ flip_x_state: "active" }) :
+            this) :
         (this.flip_x_state == "idle" ?
-            self :
-            self.copy({ flip_x_state: "idle" }));
+            this:
+            this.copy({ flip_x_state: "idle" }));
 
-    const car_flipping_x = self.flip_x_state == "idle" &&
-                                                car_after_flip_x_input.flip_x_state == "active";
-    const car_after_flip_x = car_flipping_x  ? car_after_flip_x_input._mirrorX() :
-        car_after_flip_x_input;
+    const is_flipping_x = this.flip_x_state == "idle" &&
+                           after_flip_x_input.flip_x_state == "active";
+    return is_flipping_x ? after_flip_x_input._mirrorX() : after_flip_x_input;
+  }
 
-    const car_after_flip_y_input: Car = Constants.key_pressed.get("D") ?
+  private _apply_flip_y_input(): Car {
+    const after_flip_y_input: Car = Constants.key_pressed.get("D") ?
         (this.flip_y_state == "idle" ?
-            car_after_flip_x.copy({ flip_y_state: "active" }) :
-            car_after_flip_x) :
+            this.copy({ flip_y_state: "active" }) :
+            this) :
         (this.flip_y_state == "idle" ?
-            car_after_flip_x :
-            car_after_flip_x.copy({ flip_y_state: "idle" }));
+            this :
+            this.copy({ flip_y_state: "idle" }));
 
-    const car_flipping_y = self.flip_y_state == "idle" &&
-                           car_after_flip_y_input.flip_y_state == "active";
-    const car_after_flip_y = car_flipping_y ? car_after_flip_y_input._mirrorY() :
-        car_after_flip_y_input;
+    const is_flipping_y = this.flip_y_state == "idle" &&
+                           after_flip_y_input.flip_y_state == "active";
+    return is_flipping_y ? after_flip_y_input._mirrorY() : after_flip_y_input;
+  }
 
-    const car_after_all_flips = car_after_flip_y;
-
-    const advanced_car_gravity: Car = car_after_all_flips.updated(time_unit) as Car;
-
-    const cat_after_nitro_input: Car = advanced_car_gravity.copy({
+  private _apply_nitro_input(time_unit: number): Car {
+    const after_nitro_input: Car = this.copy({
       nitro_state: Constants.key_pressed.get("up") ? "active" : "idle"
     });
-    const car_after_jump_input: Car = Constants.key_pressed.get("A") ?
+
+    const nitro_strength = 20;
+    const is_nitro_active = after_nitro_input.nitro_state == "active";
+
+    const nitro_vector = this.nitro.normalize()
+        .multiply(is_nitro_active ? 1 : 0).rotate(this.angle).reverse().multiply(nitro_strength);
+
+    return after_nitro_input.copy({
+        velocity: after_nitro_input.velocity.add_vector(nitro_vector.multiply(time_unit * 1.0 / 1000))
+    });
+  }
+
+  private _apply_jump_input(time_unit: number): Car {
+    const after_jump_input: Car = Constants.key_pressed.get("A") ?
         (this.jump_state == "station" ?
-            cat_after_nitro_input.copy({
+            this.copy({
               flying_state: "flying",
               jump_state: "jumping",
               jump_timer: Constants.jump_timer_duration
             }) :
-            cat_after_nitro_input.copy({
-              jump_timer: Math.max(0, cat_after_nitro_input.jump_timer - 1)
+            this.copy({
+              jump_timer: Math.max(0, this.jump_timer - 1)
             })) :
         (this.jump_state == "station" ?
-            cat_after_nitro_input.copy({
-              jump_timer: Math.max(0, cat_after_nitro_input.jump_timer - 1)
+            this.copy({
+              jump_timer: Math.max(0, this.jump_timer - 1)
             }) :
-            cat_after_nitro_input.copy({
+            this.copy({
               jump_state: "station",
-              jump_timer: Math.max(0, cat_after_nitro_input.jump_timer - 1)
+              jump_timer: Math.max(0, this.jump_timer - 1)
             }));
-    const car_after_all_input = car_after_jump_input;
 
-    const car_jumping_index = car_after_all_input.jump_timer;
-    const car_jumping = car_after_all_input.jump_timer > 0;
-    const car_flying = car_after_all_input.flying_state == "flying";
-    const nitro_active = car_after_all_flips.nitro_state == "active";
+    const car_jumping_index = after_jump_input.jump_timer;
+    const car_jumping = after_jump_input.jump_timer > 0;
+    const car_flying = after_jump_input.flying_state == "flying";
 
-    const nitro_vector = car_after_all_flips.nitro.normalize()
-        .multiply(nitro_active ? 1 : 0).rotate(this.angle).reverse().multiply(20);
-    const jump_vector = car_after_all_flips.jumper.normalize()
+    const jump_vector = this.jumper.normalize()
         .multiply(car_jumping ? 1 : 0).rotate(this.angle).reverse().multiply(20);
-    const angular_force = (Constants.key_pressed.get("left") * -1 +
-        Constants.key_pressed.get("right")) * (car_flying ? 4 : 0);
 
-    const advanced_car: Car = car_after_all_input.copy({
-        velocity: car_after_all_input.velocity.add_vector(nitro_vector.multiply(time_unit * 1.0 / 1000))
-            .add_vector(jump_vector.multiply(1.0 / Math.pow(2, Constants.jump_timer_duration - car_jumping_index + 1))),
-        angular_velocity: car_after_all_input.angular_velocity +
-            (angular_force * time_unit * 1.0 / 1000)
+    return after_jump_input.copy({
+        velocity: after_jump_input.velocity.add_vector(jump_vector.multiply(1.0 / Math.pow(2, Constants.jump_timer_duration - car_jumping_index + 1))),
     });
+  }
 
-    const advanced_car_original_position = advanced_car.copy<Car>({
+  private _apply_rotation_input(time_unit: number): Car {
+    const angular_force = (Constants.key_pressed.get("left") * -1 +
+        Constants.key_pressed.get("right"));
+    const rotation_strength = 4;
+
+    return this.copy({
+        angular_velocity: this.angular_velocity + (rotation_strength * angular_force * time_unit * 1.0 / 1000)
+    });
+  }
+
+  // public updated(time_unit: number): Car {
+  // }
+
+  public update_game_set(time_unit: number, game_set: GameSet): GameSet{
+    const start_state = this;
+
+    const pipeline = Immutable.List([
+      { method: this._apply_flip_x_input, parameters: [] },
+      { method: this._apply_flip_y_input, parameters: [] },
+      { method: this._apply_nitro_input, parameters: [time_unit] },
+      { method: this._apply_jump_input, parameters: [time_unit] },
+      { method: this._apply_rotation_input, parameters: [time_unit] },
+      { method: this._updated_physics, parameters: [time_unit] }
+    ]);
+    const final_state = pipeline.reduce((current_state, transformer) => transformer.method.call(current_state, transformer.parameters), start_state);
+
+    const advanced_car_original_position = final_state.copy<Car>({
       position: this.position,
       angle: this.angle
     });
     return advanced_car_original_position.collideAll(
-        advanced_car.position.subtract(this.position), advanced_car.angle - this.angle, game_set);
+        final_state.position.subtract(this.position), final_state.angle - this.angle, game_set);
   }
 
   public draw(ctx: CanvasRenderingContext2D, camera_position: Vector2D) {

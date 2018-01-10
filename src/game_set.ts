@@ -32,34 +32,40 @@ export default class GameSet extends Entity {
   }
 
   public updated(time_unit: number) {
-    const updatedRec = (game_set: GameSet, remaining: Immutable.List<number>): GameSet => {
-      if (remaining.size == 0)
-          return game_set;
+    const all_objects_except_ground = 
+        this.contents
+            .entrySeq()
+            .filter(([k, v]) => !v.is_ground)
+            .map(([k, v]) => k)
+            .toList();
 
-      const first_key = remaining.first();
-      const first_object = game_set.contents.get(first_key) as GameElement;
-
-      const new_game_set = first_object.update_game_set(time_unit, game_set) as GameSet;
-      return updatedRec(new_game_set, remaining.shift());
-    }
-
-    const updated_game_set = updatedRec(this,
-        this.contents.entrySeq().filter(([k, v]) => !v.is_ground).map(([k, v]) => k).toList());
-
-    return updated_game_set;
+    return all_objects_except_ground.reduce(
+      (current_game_set, object) => object.update_game_set(time_unit, current_game_set)
+    ); 
   }
+
+  private _updated_per_object(time_unit: number, object: GameElement) {
+
+  }
+
   public draw(ctx: CanvasRenderingContext2D) {
       const self = this;
-      this.contents.valueSeq().forEach((o: GameElement) =>
-          o.draw(ctx, self.camera.get_coordinates(self)));
+      this.contents
+        .valueSeq()
+        .forEach((o: GameElement) => o.draw(ctx, self.camera.get_coordinates(self)));
   }
+
   public replace_element(element: Entity): GameSet {
-      const physical = element as PhysicalObject;
+    //   const physical = element as PhysicalObject;
       // assert_not(physical.lines.some(line => {let d = line.rotate(physical.angle).offset(physical.position); return d.start_position.y > 100 || d.end_position.y > 100;}), "object overlap bottom ground");
       return this.copy({ contents: this.contents.set(element.id, element) });
   }
+
   public get_objects_except(element: Entity): Immutable.List<Entity> {
-      return this.contents.entrySeq().filter(([k, v]) =>
-          k != element.id).map(([k, v]) => v).toList();
+      return this.contents
+        .entrySeq()
+        .filter(([k, v]) => k != element.id)
+        .map(([k, v]) => v)
+        .toList();
   } 
 }

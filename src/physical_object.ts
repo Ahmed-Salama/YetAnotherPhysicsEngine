@@ -29,13 +29,25 @@ export default class PhysicalObject extends Entity {
     this._build_lines();
     
     const contribution_ratio = 1.0 / (2 * this.lines.size);
-    this.moment_of_inertia = this.mass *
-        this.lines.reduce((acc, line) =>
-            acc + contribution_ratio * (Math.pow(line.start_position.length(), 2) +
-                Math.pow(line.end_position.length(), 2)), 0);
-    this.center_of_mass = this.lines.reduce((com, line) =>
-        com.add_vector(line.start_position.multiply(contribution_ratio))
-           .add_vector(line.end_position.multiply(contribution_ratio)), Vector2D.empty);
+    this.moment_of_inertia = 
+      this.mass *
+      this.lines
+        .reduce(
+          (acc, line) =>
+            acc +
+            contribution_ratio *
+              (Math.pow(line.start_position.length(), 2) +
+               Math.pow(line.end_position.length(), 2)),
+          0);
+
+    this.center_of_mass = 
+      this.lines
+        .reduce(
+          (com, line) =>
+            com
+              .add_vector(line.start_position.multiply(contribution_ratio))
+              .add_vector(line.end_position.multiply(contribution_ratio)),
+          Vector2D.empty);
   }
 
   protected _define_attributes() {
@@ -50,28 +62,55 @@ export default class PhysicalObject extends Entity {
     this.lines = Immutable.List();
   }
 
-  public updated(time_unit: number): PhysicalObject {
-    const new_velocity = this.velocity.add_vector(gravity_vector.multiply(time_unit * 1.0 / 1000));
-    const velocity_air_drag_vector = new_velocity.normalize().reverse().multiply(
-        Math.pow(new_velocity.length(), 2) * 0.02 * time_unit / 1000);
-    const angular_velocity_air_drag = (this.angular_velocity > 0 ? -1 : 1) * Math.pow(
-        this.angular_velocity, 2) * 0.74 * time_unit / 1000;
+  public _updated_physics(time_unit: number): PhysicalObject {
+    const time_fraction = time_unit * 1.0 / 1000;
+
+    const new_velocity = 
+      this.velocity
+        .add_vector(gravity_vector.multiply(time_fraction));
+
+    const velocity_air_drag_coeff = 0.02;
+    const velocity_air_drag_vector = 
+      new_velocity
+        .normalize()
+        .reverse()
+        .multiply(
+          Math.pow(new_velocity.length(), 2) *
+          velocity_air_drag_coeff *
+          time_fraction);
+
+    const angular_velocity_air_drag =
+      (this.angular_velocity > 0 ? -1 : 1) *
+      Math.pow(this.angular_velocity, 2) *
+      0.74;
 
     return this.copy({
-        position: this.position.add_vector(this.velocity.multiply(time_unit * 1.0 / 1000)),
-        velocity: new_velocity.add_vector(velocity_air_drag_vector),
-        angle: this.angle + this.angular_velocity * time_unit * 1.0 / 1000,
-        angular_velocity: this.angular_velocity + angular_velocity_air_drag});
+      position:
+        this.position
+          .add_vector(this.velocity.multiply(time_fraction)),
+      velocity:
+        new_velocity
+          .add_vector(velocity_air_drag_vector),
+      angle:
+        this.angle +
+        this.angular_velocity * time_fraction,
+      angular_velocity:
+        this.angular_velocity +
+        angular_velocity_air_drag * time_fraction
+    });
   }
 
   protected _translate(vector: Vector2D) {
     return this.position.add_vector(vector.rotate(this.angle));
   }
 
-  protected _camera_translate(vector: Vector2D, camera_position: Vector2D) {
+  protected _camera_translate(vector: Vector2D, camera_position: Vector2D): Vector2D {
     const after_position_and_rotation = this._translate(vector);
-    return after_position_and_rotation.add_vector(new Vector2D(
-        -camera_position.x + Constants.canvas_size / (2 * Constants.drawing_scale), 0));
+    return after_position_and_rotation.add_vector(
+          new Vector2D(
+            - camera_position.x +
+            Constants.canvas_size / (2 * Constants.drawing_scale),
+            0));
   }
 
   protected _stroke_line(start: Vector2D, end: Vector2D, color: string,

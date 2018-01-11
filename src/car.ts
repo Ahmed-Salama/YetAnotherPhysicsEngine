@@ -4,8 +4,14 @@ import {Line} from './line'
 import Vector2D from './vector2d'
 import PhysicalObject from './physical_object';
 import GameElement from './game_element';
+import Pipeline from './pipeline';
+import PipelineTransformer from './pipeline_transformer';
 
 export default class Car extends PhysicalObject {
+  public static readonly NITRO_STRENGTH = 20;
+  public static readonly ROTATION_STRENGTH = 4;
+  public static readonly JUMP_STRENGTH = 20;
+
   public flying_state: string;
   public jump_state: string;
   public jump_timer: number;
@@ -113,11 +119,15 @@ export default class Car extends PhysicalObject {
       nitro_state: Constants.key_pressed.get("up") ? "active" : "idle"
     });
 
-    const nitro_strength = 20;
     const is_nitro_active = after_nitro_input.nitro_state == "active";
 
-    const nitro_vector = this.nitro.normalize()
-        .multiply(is_nitro_active ? 1 : 0).rotate(this.angle).reverse().multiply(nitro_strength);
+    const nitro_vector = 
+      this.nitro
+        .reverse()
+        .normalize()
+        .multiply(is_nitro_active ? 1 : 0)
+        .rotate(this.angle)
+        .multiply(Car.NITRO_STRENGTH);
 
     return after_nitro_input.copy({
         velocity: after_nitro_input.velocity.add_vector(nitro_vector.multiply(time_unit * 1.0 / 1000))
@@ -148,38 +158,46 @@ export default class Car extends PhysicalObject {
     const car_jumping = after_jump_input.jump_timer > 0;
     const car_flying = after_jump_input.flying_state == "flying";
 
-    const jump_vector = this.jumper.normalize()
-        .multiply(car_jumping ? 1 : 0).rotate(this.angle).reverse().multiply(20);
+    const jump_vector = 
+      this.jumper
+        .reverse()
+        .normalize()
+        .multiply(car_jumping ? 1 : 0)
+        .rotate(this.angle)
+        .multiply(Car.JUMP_STRENGTH)
+        .multiply(1.0 / Math.pow(2, Constants.jump_timer_duration - car_jumping_index + 1));
 
     return after_jump_input.copy({
-        velocity: after_jump_input.velocity.add_vector(jump_vector.multiply(1.0 / Math.pow(2, Constants.jump_timer_duration - car_jumping_index + 1))),
+        velocity: after_jump_input.velocity.add_vector(jump_vector),
     });
   }
 
   private _apply_rotation_input(time_unit: number): Car {
-    const angular_force = (Constants.key_pressed.get("left") * -1 +
-        Constants.key_pressed.get("right"));
-    const rotation_strength = 4;
+    const angular_force = 
+        Constants.key_pressed.get("left") * -1 +
+        Constants.key_pressed.get("right");
+
+    const angular_velocity_input = 
+      Car.ROTATION_STRENGTH *
+      angular_force *
+      time_unit * 1.0 / 1000;
 
     return this.copy({
-        angular_velocity: this.angular_velocity + (rotation_strength * angular_force * time_unit * 1.0 / 1000)
+        angular_velocity: this.angular_velocity + angular_velocity_input
     });
   }
 
   public updated(time_unit: number): GameElement {
-    const start_state = this;
+    const pipeline = new Pipeline<PhysicalObject>(Immutable.List([
+      new PipelineTransformer(this._apply_flip_x_input, []),
+      new PipelineTransformer(this._apply_flip_y_input, []),
+      new PipelineTransformer(this._apply_nitro_input, [time_unit]),
+      new PipelineTransformer(this._apply_jump_input, [time_unit]),
+      new PipelineTransformer(this._apply_rotation_input, [time_unit]),
+      new PipelineTransformer(this._updated_physics, [time_unit])
+    ]));
 
-    const pipeline = Immutable.List([
-      { method: this._apply_flip_x_input, parameters: [] },
-      { method: this._apply_flip_y_input, parameters: [] },
-      { method: this._apply_nitro_input, parameters: [time_unit] },
-      { method: this._apply_jump_input, parameters: [time_unit] },
-      { method: this._apply_rotation_input, parameters: [time_unit] },
-      { method: this._updated_physics, parameters: [time_unit] }
-    ]);
-
-    const final_state = pipeline.reduce((current_state, transformer) => transformer.method.call(current_state, transformer.parameters), start_state);
-    return final_state;
+    return pipeline.execute(this);
   }
 
   public draw(ctx: CanvasRenderingContext2D, camera_position: Vector2D) {

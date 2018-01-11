@@ -9,7 +9,7 @@ import PipelineTransformer from './pipeline_transformer';
 
 export default class Car extends PhysicalObject {
   public static readonly NITRO_STRENGTH = 20;
-  public static readonly ROTATION_STRENGTH = 4;
+  public static readonly ROTATION_STRENGTH = 3;
   public static readonly JUMP_STRENGTH = 20;
 
   public flying_state: string;

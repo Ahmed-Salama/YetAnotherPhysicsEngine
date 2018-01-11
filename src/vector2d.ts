@@ -49,6 +49,10 @@ export default class Vector2D extends Entity {
     return this.copy({ x: 0 });
   }
 
+  public mapX(f: (_: number) => number): Vector2D {
+    return this.copy({ x: f(this.x) });
+  }
+
   public angle() {
     return Math.atan2(this.y, this.x);
   }

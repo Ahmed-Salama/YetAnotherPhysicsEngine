@@ -51,7 +51,7 @@ export default class GameSet extends GameElement {
   private _updated_per_object(time_unit: number, object_id: number): GameSet {
     const object = this.objects.get(object_id);
 
-    // Update object
+    // Calculate updated object
     const next_state = object.updated(time_unit) as PhysicalObject;
 
     const next_state_reset_translation = next_state.copy<PhysicalObject>({
@@ -62,59 +62,52 @@ export default class GameSet extends GameElement {
     const next_state_delta_position = next_state.position.subtract(object.position);
     const next_state_delta_angle = next_state.angle - object.angle;
 
-    class DeltaState {
-      public position: Vector2D;
-      public angle: number;
-      public game_set: GameSet;
-      public collided_objects: Immutable.List<number>;
-      constructor(position: Vector2D, angle: number, collided_objects: Immutable.List<number>, game_set: GameSet) {
-        this.position = position;
-        this.angle = angle;
-        this.collided_objects = collided_objects;
-        this.game_set = game_set;
-      }
-    };
-
     // Collide object with all remaining objects in the setup
     const all_objects_except_me = this.filter_objects(o => o.id != object.id).map(e => e.id);
-    const final_delta = all_objects_except_me.reduce(
-      (delta, to_collide) => {
-        const updated_self = delta.game_set.objects.get(object.id) as PhysicalObject;
-        const updated_to_collide = delta.game_set.objects.get(to_collide) as PhysicalObject;
-        
-        const collision_result = delta.game_set._collide_object_plus_delta_with_another(
-          updated_self,
-          updated_to_collide,
-          delta.position,
-          delta.angle);
+    const {reduced_delta_position: after_collision_delta_position,
+           reduced_delta_angle: after_collision_delta_angle,
+           collided,
+           reduced_game_set: after_collision_game_set} = 
+           all_objects_except_me.reduce(
+            ({reduced_delta_position, reduced_delta_angle, collided, reduced_game_set}, to_collide) => {
+              const updated_object = reduced_game_set.objects.get(object.id) as PhysicalObject;
+              const updated_to_collide = reduced_game_set.objects.get(to_collide) as PhysicalObject;
+              
+              const {next_game_set, 
+                     next_delta_position, 
+                     next_delta_angle, 
+                     collision} = reduced_game_set._collide_object_plus_delta_with_another(
+                                    updated_object,
+                                    reduced_delta_position,
+                                    reduced_delta_angle,
+                                    updated_to_collide);
 
-        const new_game_set = collision_result.game_set as GameSet;
-        const new_delta_position = collision_result.delta_position;
-        const new_delta_angle = collision_result.delta_angle;
+              return {reduced_delta_position: next_delta_position,
+                      reduced_delta_angle: next_delta_angle,
+                      collided: collided || collision.collided(), 
+                      reduced_game_set: next_game_set};
+            },
+            { reduced_delta_position: next_state_delta_position,
+              reduced_delta_angle: next_state_delta_angle, 
+              collided: false, 
+              reduced_game_set: this.replace_element(next_state_reset_translation) });
 
-        const collided = collision_result.collision.collided();
-        const next_collided_objects = collided ? delta.collided_objects.push(to_collide) : delta.collided_objects;
-
-        return new DeltaState(new_delta_position, new_delta_angle, next_collided_objects, new_game_set);
-      },
-      new DeltaState(next_state_delta_position, next_state_delta_angle, Immutable.List(), this.replace_element(next_state_reset_translation)));
-
-    const updated_object = final_delta.game_set.objects.get(object.id);
-    const multiplier = final_delta.collided_objects.size > 0 ? 
-      final_delta.game_set._is_object_plus_delta_non_intersecting(updated_object, final_delta.position, final_delta.angle) :
+    const after_collision_object = after_collision_game_set.objects.get(object.id);
+    const delta_scale = collided ? 
+      after_collision_game_set._is_object_plus_delta_collision_free(after_collision_object, after_collision_delta_position, after_collision_delta_angle) :
       1;
 
-    if (multiplier < 1) console.log(multiplier);
-    const final_delta_position = final_delta.position.multiply(multiplier);
-    const final_delta_angle = final_delta.angle * multiplier;
+    if (delta_scale < 1) console.log(delta_scale);
+    const final_delta_position = after_collision_delta_position.multiply(delta_scale);
+    const final_delta_angle = after_collision_delta_angle * delta_scale;
 
-    const updated_object_with_delta = updated_object.move(final_delta_position).rotate(final_delta_angle);
-    const final_game_set = final_delta.game_set.replace_element(updated_object_with_delta);
+    const updated_object_with_delta = after_collision_object.move(final_delta_position).rotate(final_delta_angle);
+    const final_game_set = after_collision_game_set.replace_element(updated_object_with_delta);
 
     return final_game_set;
   }
 
-  private _is_object_plus_delta_non_intersecting(object: PhysicalObject, delta_p: Vector2D, delta_a: number) {
+  private _is_object_plus_delta_collision_free(object: PhysicalObject, delta_p: Vector2D, delta_a: number) {
     const object_with_delta_p = object.move(delta_p);
     const object_with_delta_a = object.rotate(delta_a);
 
@@ -127,23 +120,23 @@ export default class GameSet extends GameElement {
     return intersects ? 0 : 1;
   }
 
-  public _collide_object_plus_delta_with_another(o_a: PhysicalObject, o_b: PhysicalObject, delta_position: Vector2D, delta_angle: number): CollisionResult {
-    const contact_force_coeff = 4;
-    const advanced_self = o_a.move(delta_position).rotate(delta_angle);
+  public _collide_object_plus_delta_with_another(o_a: PhysicalObject, o_a_delta_position: Vector2D, o_a_delta_angle: number, o_b: PhysicalObject) {
+    const contact_force_coeff = 3;
+    const o_a_updated = o_a.move(o_a_delta_position).rotate(o_a_delta_angle);
 
-    const collision = advanced_self.calculate_collision(o_b);
+    const collision = o_a_updated.calculate_collision(o_b);
     if (!collision.collided()) {
       return {
-        game_set: this,
-        collision: collision,
-        delta_position: delta_position,
-        delta_angle: delta_angle
+        next_game_set: this as GameSet,
+        next_delta_position: o_a_delta_position,
+        next_delta_angle: o_a_delta_angle,
+        collision: collision
       };
     }
 
     // Impulse-based collision handling.
     // Reference: https://www.myphysicslab.com/engine2D/collision-en.html#collision_physics
-    const impulse_weight = 1.0 / collision.intersections.size;
+    const intersection_weight = 1.0 / collision.intersections.size;
 
     if (o_b.is_ground) {
       const collide_rec = (delta_v_a: Vector2D, delta_w_a: number, delta_p: Vector2D,
@@ -163,21 +156,25 @@ export default class GameSet extends GameElement {
             (intersection.self_line.elasticity + intersection.other_line.elasticity) / 2;
     
         const normal = intersection.other_line.normal(); 
-        const r_ap = advanced_self.position.add_vector(advanced_self.center_of_mass)
-                                           .to(intersection_point);
+        const r_ap = o_a_updated.position
+                      .add_vector(o_a_updated.center_of_mass)
+                      .to(intersection_point);
 
-        const v_a1 = advanced_self.velocity;
-        const w_a1 = advanced_self.angular_velocity;
+        const v_a1 = o_a_updated.velocity;
+        const w_a1 = o_a_updated.angular_velocity;
 
         const v_ap1 = v_a1.add_vector(r_ap.crossW(w_a1));
 
-        const m_a = advanced_self.mass;
-        const i_a = advanced_self.moment_of_inertia;
+        const m_a = o_a_updated.mass;
+        const i_a = o_a_updated.moment_of_inertia;
 
-        const impulse = - impulse_weight * (1 + elasticity) * v_ap1.dot(normal) /
-            (1.0/m_a + Math.pow(r_ap.cross(normal), 2)/i_a);
+        const impulse = - intersection_weight * (1 + elasticity) * v_ap1.dot(normal) /
+                          (1.0/m_a + Math.pow(r_ap.cross(normal), 2)/i_a);
 
-        const new_delta_p = delta_p.rotate(-normal.angle()).mapX(x => x > 0 ? x : -x).rotate(normal.angle());
+        const new_delta_p = delta_p
+                              .rotate(-normal.angle())
+                              .mapX(x => x > 0 ? x : -x)
+                              .rotate(normal.angle());
 
         const d_v_a = normal.multiply(impulse / m_a)
         const d_w_a = r_ap.cross(normal.multiply(impulse)) / i_a;
@@ -186,16 +183,16 @@ export default class GameSet extends GameElement {
                            remaining_intersections.shift());
       }
 
-      const delta = collide_rec(Vector2D.empty, 0, delta_position, collision.intersections);
+      const delta = collide_rec(Vector2D.empty, 0, o_a_delta_position, collision.intersections);
 
       return {
-        game_set: this.replace_element(o_a.copy({
+        next_game_set: this.replace_element(o_a.copy({
             velocity: o_a.velocity.add_vector(delta.d_v_a),
             angular_velocity: o_a.angular_velocity + delta.d_w_a
         })),
-        collision: collision,
-        delta_position: delta.d_p,
-        delta_angle: 0
+        next_delta_position: delta.d_p,
+        next_delta_angle: 0,
+        collision: collision
       };
     } else {
       const collide_rec = (delta_v_a: Vector2D, delta_w_a: number, delta_v_b: Vector2D,
@@ -219,15 +216,15 @@ export default class GameSet extends GameElement {
 
         const normal = intersection.self_line.normal();
 
-        const v_a1 = advanced_self.velocity;
+        const v_a1 = o_a_updated.velocity;
         const v_b1 = o_b.velocity;
 
-        const r_ap = advanced_self.position.add_vector(advanced_self.center_of_mass)
+        const r_ap = o_a_updated.position.add_vector(o_a_updated.center_of_mass)
                                            .to(intersection_point);
-        const r_bp = o_b.position.add_vector(advanced_self.center_of_mass)
+        const r_bp = o_b.position.add_vector(o_a_updated.center_of_mass)
                                    .to(intersection_point);
 
-        const w_a1 = advanced_self.angular_velocity;
+        const w_a1 = o_a_updated.angular_velocity;
         const w_b1 = o_b.angular_velocity;
 
         const v_ap1 = v_a1.add_vector(r_ap.crossW(w_a1));
@@ -235,13 +232,13 @@ export default class GameSet extends GameElement {
 
         const v_ab1 = v_ap1.subtract(v_bp1);
 
-        const m_a = advanced_self.mass;
+        const m_a = o_a_updated.mass;
         const m_b = o_b.mass;
 
-        const i_a = advanced_self.moment_of_inertia;
+        const i_a = o_a_updated.moment_of_inertia;
         const i_b = o_b.moment_of_inertia;
 
-        const impulse = - impulse_weight * (1 + elasticity) * v_ab1.dot(normal) /
+        const impulse = - intersection_weight * (1 + elasticity) * v_ab1.dot(normal) /
             (1.0/m_a + 1.0/m_b + Math.pow(r_ap.cross(normal), 2)/i_a +
             Math.pow(r_bp.cross(normal), 2)/i_b);
 
@@ -249,8 +246,8 @@ export default class GameSet extends GameElement {
         const new_delta_p = delta_p.rotate(-normal_reverse.angle()).mapX(x => Math.max(0, x)).rotate(normal_reverse.angle());
 
         // New velocities calculated based on impulse and contact forces
-        const d_v_a = normal.multiply(impulse / m_a).add_vector(normal_reverse.multiply(impulse_weight).multiply(delta_p.length() - new_delta_p.length() + contact_force_coeff * m_b / (m_a + m_b)));
-        const d_v_b = normal.multiply(-impulse / m_b).add_vector(normal.multiply(impulse_weight).multiply(delta_p.length() - new_delta_p.length() + contact_force_coeff * m_a / (m_a + m_b)));
+        const d_v_a = normal.multiply(impulse / m_a).add_vector(normal_reverse.multiply(intersection_weight).multiply(delta_p.length() - new_delta_p.length() + contact_force_coeff * m_b / (m_a + m_b)));
+        const d_v_b = normal.multiply(-impulse / m_b).add_vector(normal.multiply(intersection_weight).multiply(delta_p.length() - new_delta_p.length() + contact_force_coeff * m_a / (m_a + m_b)));
 
         const d_w_a = r_ap.cross(normal.multiply(impulse)) / i_a;
         const d_w_b = -r_bp.cross(normal.multiply(impulse)) / i_b;
@@ -261,7 +258,7 @@ export default class GameSet extends GameElement {
                            remaining_intersections.shift());
       }
 
-      const delta = collide_rec(Vector2D.empty, 0, Vector2D.empty, 0, delta_position,
+      const delta = collide_rec(Vector2D.empty, 0, Vector2D.empty, 0, o_a_delta_position,
                                 collision.intersections);
 
       const updated_self = o_a.copy<PhysicalObject>({
@@ -274,10 +271,10 @@ export default class GameSet extends GameElement {
       });
 
       return {
-        game_set: this.replace_element(updated_self).replace_element(updated_other),
-        collision: collision,
-        delta_position: delta.d_p,
-        delta_angle: 0
+        next_game_set: this.replace_element(updated_self).replace_element(updated_other),
+        next_delta_position: delta.d_p,
+        next_delta_angle: 0,
+        collision: collision
       };
     }
   }

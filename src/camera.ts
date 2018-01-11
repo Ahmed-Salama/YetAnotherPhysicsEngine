@@ -15,7 +15,7 @@ export default class Camera extends Entity {
   }
 
   public get_coordinates(game_set: GameSet): Vector2D {
-    const attached_object = game_set.contents.get(this.attached_object_id) as PhysicalObject;
+    const attached_object = game_set.objects.get(this.attached_object_id) as PhysicalObject;
     return attached_object.position;
   }
 }

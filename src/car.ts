@@ -30,7 +30,7 @@ export default class Car extends PhysicalObject {
   protected _define_attributes() {
     super._define_attributes();
     this.position = new Vector2D(60, 85);
-    this.mass = 40;
+    this.mass = 200;
     this.flying_state = "flying";
     this.jump_state = "station";
     this.jump_timer = 0;

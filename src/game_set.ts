@@ -36,10 +36,10 @@ export default class GameSet extends GameElement {
   }
 
   public updated(time_unit: number) {
-    const all_objects_except_ground = 
-      this.filter_objects(o => !o.is_ground)
-        .map(o => o.id)
-        .toList();
+    const all_objects_except_ground = this
+                                        .filter_objects(o => !o.is_ground)
+                                        .map(o => o.id)
+                                        .toList();
 
     return all_objects_except_ground.reduce(
       (current_game_set, object_id) =>
@@ -94,16 +94,20 @@ export default class GameSet extends GameElement {
 
     const after_collision_object = after_collision_game_set.objects.get(object.id);
     const delta_scale = collided ? 
-      after_collision_game_set._is_object_plus_delta_collision_free(after_collision_object, after_collision_delta_position, after_collision_delta_angle) :
+      after_collision_game_set._is_object_plus_delta_collision_free(after_collision_object, 
+                                                                    after_collision_delta_position, 
+                                                                    after_collision_delta_angle) :
       1;
 
     if (delta_scale < 1) console.log(delta_scale);
     const final_delta_position = after_collision_delta_position.multiply(delta_scale);
     const final_delta_angle = after_collision_delta_angle * delta_scale;
 
-    const updated_object_with_delta = after_collision_object.move(final_delta_position).rotate(final_delta_angle);
-    const final_game_set = after_collision_game_set.replace_element(updated_object_with_delta);
+    const updated_object_with_delta = after_collision_object
+                                        .move(final_delta_position)
+                                        .rotate(final_delta_angle);
 
+    const final_game_set = after_collision_game_set.replace_element(updated_object_with_delta);
     return final_game_set;
   }
 
@@ -219,10 +223,12 @@ export default class GameSet extends GameElement {
         const v_a1 = o_a_updated.velocity;
         const v_b1 = o_b.velocity;
 
-        const r_ap = o_a_updated.position.add_vector(o_a_updated.center_of_mass)
-                                           .to(intersection_point);
-        const r_bp = o_b.position.add_vector(o_a_updated.center_of_mass)
-                                   .to(intersection_point);
+        const r_ap = o_a_updated.position
+                      .add_vector(o_a_updated.center_of_mass)
+                      .to(intersection_point);
+        const r_bp = o_b.position
+                      .add_vector(o_a_updated.center_of_mass)
+                      .to(intersection_point);
 
         const w_a1 = o_a_updated.angular_velocity;
         const w_b1 = o_b.angular_velocity;
@@ -239,15 +245,25 @@ export default class GameSet extends GameElement {
         const i_b = o_b.moment_of_inertia;
 
         const impulse = - intersection_weight * (1 + elasticity) * v_ab1.dot(normal) /
-            (1.0/m_a + 1.0/m_b + Math.pow(r_ap.cross(normal), 2)/i_a +
-            Math.pow(r_bp.cross(normal), 2)/i_b);
+                        (1.0/m_a + 1.0/m_b + Math.pow(r_ap.cross(normal), 2)/i_a +
+                        Math.pow(r_bp.cross(normal), 2)/i_b);
 
         const normal_reverse = normal.reverse();
-        const new_delta_p = delta_p.rotate(-normal_reverse.angle()).mapX(x => Math.max(0, x)).rotate(normal_reverse.angle());
+        const new_delta_p = delta_p
+                              .rotate(-normal_reverse.angle())
+                              .mapX(x => Math.max(0, x))
+                              .rotate(normal_reverse.angle());
 
         // New velocities calculated based on impulse and contact forces
-        const d_v_a = normal.multiply(impulse / m_a).add_vector(normal_reverse.multiply(intersection_weight).multiply(delta_p.length() - new_delta_p.length() + contact_force_coeff * m_b / (m_a + m_b)));
-        const d_v_b = normal.multiply(-impulse / m_b).add_vector(normal.multiply(intersection_weight).multiply(delta_p.length() - new_delta_p.length() + contact_force_coeff * m_a / (m_a + m_b)));
+        const contact_velocity_a = normal_reverse
+                                     .multiply(intersection_weight)
+                                     .multiply(delta_p.length() - new_delta_p.length() + contact_force_coeff * m_b / (m_a + m_b));
+        const contact_velocity_b = normal
+                                     .multiply(intersection_weight)
+                                     .multiply(delta_p.length() - new_delta_p.length() + contact_force_coeff * m_a / (m_a + m_b));
+
+        const d_v_a = normal.multiply(impulse / m_a).add_vector(contact_velocity_a);
+        const d_v_b = normal.multiply(-impulse / m_b).add_vector(contact_velocity_b);
 
         const d_w_a = r_ap.cross(normal.multiply(impulse)) / i_a;
         const d_w_b = -r_bp.cross(normal.multiply(impulse)) / i_b;
@@ -292,9 +308,9 @@ export default class GameSet extends GameElement {
 
   public filter_objects(predicate: (_: PhysicalObject) => boolean): Immutable.List<PhysicalObject> {
       return this.objects
-        .entrySeq()
-        .filter(([k, v]) => predicate(v))
-        .map(([k, v]) => v)
-        .toList();
+              .entrySeq()
+              .filter(([k, v]) => predicate(v))
+              .map(([k, v]) => v)
+              .toList();
   } 
 }

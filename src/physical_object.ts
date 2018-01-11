@@ -2,13 +2,13 @@
 import {Collision, CollisionResult} from './collision'
 import Constants from './constants'
 import Entity from './entity'
-import GameSet from './game_set'
 import Vector2D from './vector2d'
 import {Intersection, Line} from './line'
+import GameElement from './game_element';
 
 const gravity_vector = new Vector2D(0, 9.8);
 
-export default class PhysicalObject extends Entity {
+export default class PhysicalObject extends GameElement {
   public position: Vector2D;
   public velocity: Vector2D;
   public angle: number;
@@ -29,13 +29,25 @@ export default class PhysicalObject extends Entity {
     this._build_lines();
     
     const contribution_ratio = 1.0 / (2 * this.lines.size);
-    this.moment_of_inertia = this.mass *
-        this.lines.reduce((acc, line) =>
-            acc + contribution_ratio * (Math.pow(line.start_position.length(), 2) +
-                Math.pow(line.end_position.length(), 2)), 0);
-    this.center_of_mass = this.lines.reduce((com, line) =>
-        com.add_vector(line.start_position.multiply(contribution_ratio))
-           .add_vector(line.end_position.multiply(contribution_ratio)), Vector2D.empty);
+    this.moment_of_inertia = 
+      this.mass *
+      this.lines
+        .reduce(
+          (acc, line) =>
+            acc +
+            contribution_ratio *
+              (Math.pow(line.start_position.length(), 2) +
+               Math.pow(line.end_position.length(), 2)),
+          0);
+
+    this.center_of_mass = 
+      this.lines
+        .reduce(
+          (com, line) =>
+            com
+              .add_vector(line.start_position.multiply(contribution_ratio))
+              .add_vector(line.end_position.multiply(contribution_ratio)),
+          Vector2D.empty);
   }
 
   protected _define_attributes() {
@@ -50,28 +62,55 @@ export default class PhysicalObject extends Entity {
     this.lines = Immutable.List();
   }
 
-  public updated(time_unit: number): PhysicalObject {
-    const new_velocity = this.velocity.add_vector(gravity_vector.multiply(time_unit * 1.0 / 1000));
-    const velocity_air_drag_vector = new_velocity.normalize().reverse().multiply(
-        Math.pow(new_velocity.length(), 2) * 0.02 * time_unit / 1000);
-    const angular_velocity_air_drag = (this.angular_velocity > 0 ? -1 : 1) * Math.pow(
-        this.angular_velocity, 2) * 0.74 * time_unit / 1000;
+  public _updated_physics(time_unit: number): PhysicalObject {
+    const time_fraction = time_unit * 1.0 / 1000;
+
+    const new_velocity = 
+      this.velocity
+        .add_vector(gravity_vector.multiply(time_fraction));
+
+    const velocity_air_drag_coeff = 0.02;
+    const velocity_air_drag_vector = 
+      new_velocity
+        .normalize()
+        .reverse()
+        .multiply(
+          Math.pow(new_velocity.length(), 2) *
+          velocity_air_drag_coeff *
+          time_fraction);
+
+    const angular_velocity_air_drag =
+      (this.angular_velocity > 0 ? -1 : 1) *
+      Math.pow(this.angular_velocity, 2) *
+      0.74;
 
     return this.copy({
-        position: this.position.add_vector(this.velocity.multiply(time_unit * 1.0 / 1000)),
-        velocity: new_velocity.add_vector(velocity_air_drag_vector),
-        angle: this.angle + this.angular_velocity * time_unit * 1.0 / 1000,
-        angular_velocity: this.angular_velocity + angular_velocity_air_drag});
+      position:
+        this.position
+          .add_vector(this.velocity.multiply(time_fraction)),
+      velocity:
+        new_velocity
+          .add_vector(velocity_air_drag_vector),
+      angle:
+        this.angle +
+        this.angular_velocity * time_fraction,
+      angular_velocity:
+        this.angular_velocity +
+        angular_velocity_air_drag * time_fraction
+    });
   }
 
   protected _translate(vector: Vector2D) {
     return this.position.add_vector(vector.rotate(this.angle));
   }
 
-  protected _camera_translate(vector: Vector2D, camera_position: Vector2D) {
+  protected _camera_translate(vector: Vector2D, camera_position: Vector2D): Vector2D {
     const after_position_and_rotation = this._translate(vector);
-    return after_position_and_rotation.add_vector(new Vector2D(
-        -camera_position.x + Constants.canvas_size / (2 * Constants.drawing_scale), 0));
+    return after_position_and_rotation.add_vector(
+          new Vector2D(
+            - camera_position.x +
+            Constants.canvas_size / (2 * Constants.drawing_scale),
+            0));
   }
 
   protected _stroke_line(start: Vector2D, end: Vector2D, color: string,
@@ -108,6 +147,7 @@ export default class PhysicalObject extends Entity {
     this.lines.forEach(line => {
         self._stroke_line(line.start_position, line.end_position, "black", ctx, camera_position);
 
+        // normal vector calculations
         const start_to_end_vector = line.start_position.to(line.end_position);
         const mid_point = start_to_end_vector.normalize().multiply(
             start_to_end_vector.length() / 2);
@@ -130,214 +170,21 @@ export default class PhysicalObject extends Entity {
   }
 
   public calculate_collision(other: PhysicalObject) {
-    var intersections = Immutable.List<Intersection>();
     const self = this;
-    this.lines.forEach(l1 => {
+    var intersection_results = this.lines
+      .flatMap(l1 => {
         const projected_l1 = l1.rotate(self.angle).offset(self.position);
-        other.lines.forEach(l2 => {
+        return other.lines
+          .map(l2 => {
             const projected_l2 = l2.rotate(other.angle).offset(other.position);
-            const intersection_result = projected_l1.is_intersecting(projected_l2);
-            if (intersection_result.intersection_exists) {
-                intersections = intersections.push(intersection_result);
-            }
-        });
-    });
-
-    return new Collision(intersections);
-  }
-
-  public collideAll(delta_position: Vector2D, delta_angle: number, game_set: GameSet): GameSet {
-    const self = this;
-    const collided_all_rec = (delta_position_rec: Vector2D, delta_angle_rec: number,
-                         game_set_rec: GameSet, remaining: Immutable.List<number>): GameSet => {
-      if (remaining.size == 0) {
-        const updated_self = game_set_rec.contents.get(self.id) as PhysicalObject;
-        const updated_self_with_delta =
-            updated_self.move(delta_position_rec).rotate(delta_angle_rec);
-        const must_reset = game_set_rec.get_objects_except(self).some(other =>
-            updated_self_with_delta.calculate_collision(other as PhysicalObject).collided());
-        
-        return must_reset ? game_set_rec : game_set_rec.replace_element(updated_self_with_delta);
-      }
-
-      const first_key = remaining.first();
-      const first_object = game_set_rec.contents.get(first_key) as PhysicalObject;
-      const updated_self = game_set_rec.contents.get(self.id) as PhysicalObject;
-
-      const collision_result = updated_self.collide(delta_position_rec, delta_angle_rec,
-                                                    first_object, game_set_rec);
-      const new_game_set = collision_result.game_set as GameSet;
-      const new_delta_position = collision_result.delta_position;
-      const new_delta_angle = collision_result.delta_angle;
-
-      return collided_all_rec(new_delta_position, new_delta_angle, new_game_set, remaining.shift());
-    }
-
-    return collided_all_rec(delta_position, delta_angle, game_set.replace_element(this),
-                            game_set.contents.keySeq().filter(o => o != this.id).toList());
-  }
-
-  public collide(delta_position: Vector2D, delta_angle: number, other: PhysicalObject,
-                 game_set: GameSet): CollisionResult {
-    const advanced_self = this.move(delta_position).rotate(delta_angle);
-
-    const collision = advanced_self.calculate_collision(other);
-    if (!collision.collided()) {
-      return {
-        game_set: game_set,
-        delta_position: delta_position,
-        delta_angle: delta_angle
-      };
-    }
-
-    // Impulse-based collision handling.
-    // Reference: https://www.myphysicslab.com/engine2D/collision-en.html#collision_physics
-    const impulse_weight = 1.0 / collision.intersections.size;
-
-    if (other.is_ground) {
-      const collide_rec = (delta_v_a: Vector2D, delta_w_a: number, delta_p: Vector2D,
-                           remaining_intersections: Immutable.List<Intersection>): any => {
-        if (remaining_intersections.size == 0) {
-          return {
-            d_v_a: delta_v_a,
-            d_w_a: delta_w_a,
-            d_p: delta_p,
-          };
-        }
-
-        const intersection = remaining_intersections.first();
-        const intersection_point = intersection.intersection_point;
-
-        const elasticity =
-            (intersection.self_line.elasticity + intersection.other_line.elasticity) / 2;
-    
-        const normal = intersection.other_line.normal(); 
-        const r_ap = advanced_self.position.add_vector(advanced_self.center_of_mass)
-                                           .to(intersection_point);
-
-        const v_a1 = advanced_self.velocity;
-        const w_a1 = advanced_self.angular_velocity;
-
-        const v_ap1 = v_a1.add_vector(r_ap.crossW(w_a1));
-
-        const m_a = advanced_self.mass;
-        const i_a = advanced_self.moment_of_inertia;
-
-        const impulse = - impulse_weight * (1 + elasticity) * v_ap1.dot(normal) /
-            (1.0/m_a + Math.pow(r_ap.cross(normal), 2)/i_a);
-
-        const d_v_a = normal.multiply(impulse / m_a);
-        if (Constants.debugging) {
-          console.log(v_a1.toString() + ": " + impulse_weight + " w " + d_v_a.toString());
-        }
-        const d_w_a = r_ap.cross(normal.multiply(impulse)) / i_a;
-
-        const new_delta_p = delta_p.rotate(-normal.angle()).resetX().rotate(normal.angle());
-
-        return collide_rec(delta_v_a.add_vector(d_v_a), delta_w_a + d_w_a, new_delta_p,
-                           remaining_intersections.shift());
-      }
-
-      const delta = collide_rec(Vector2D.empty, 0, delta_position, collision.intersections);
-      const still_colliding = this.move(delta.d_p).calculate_collision(other).collided();
-      if (Constants.debugging) {
-        console.log("reflect " + delta.d_v_a.toString() + " - " +
-                    this.velocity.add_vector(delta.d_v_a).toString());
-      }
-
-      return {
-        game_set: game_set.replace_element(this.copy({
-            velocity: this.velocity.add_vector(delta.d_v_a),
-            angular_velocity: this.angular_velocity + delta.d_w_a
-        })),
-        delta_position: still_colliding ? Vector2D.empty : delta.d_p,
-        delta_angle: 0
-      };
-    } else {
-      const collide_rec = (delta_v_a: Vector2D, delta_w_a: number, delta_v_b: Vector2D,
-                           delta_w_b: number, delta_p: Vector2D,
-                           remaining_intersections: Immutable.List<Intersection>): any => {
-        if (remaining_intersections.size == 0) {
-          return {
-            d_v_a: delta_v_a,
-            d_w_a: delta_w_a,
-            d_v_b: delta_v_b,
-            d_w_b: delta_w_b,
-            d_p: delta_p
-          };
-        }
-
-        const intersection = remaining_intersections.first();
-        const intersection_point = intersection.intersection_point;
-
-        const elasticity =
-            (intersection.self_line.elasticity + intersection.other_line.elasticity) / 2;
-
-        const normal = intersection.self_line.normal();
-
-        const v_a1 = advanced_self.velocity;
-        const v_b1 = other.velocity;
-
-        const r_ap = advanced_self.position.add_vector(advanced_self.center_of_mass)
-                                           .to(intersection_point);
-        const r_bp = other.position.add_vector(advanced_self.center_of_mass)
-                                   .to(intersection_point);
-
-        const w_a1 = advanced_self.angular_velocity;
-        const w_b1 = other.angular_velocity;
-
-        const v_ap1 = v_a1.add_vector(r_ap.crossW(w_a1));
-        const v_bp1 = v_b1.add_vector(r_bp.crossW(w_b1));
-
-        const v_ab1 = v_ap1.subtract(v_bp1);
-
-        const m_a = advanced_self.mass;
-        const m_b = other.mass;
-
-        const i_a = advanced_self.moment_of_inertia;
-        const i_b = other.moment_of_inertia;
-
-        const impulse = - impulse_weight * (1 + elasticity) * v_ab1.dot(normal) /
-            (1.0/m_a + 1.0/m_b + Math.pow(r_ap.cross(normal), 2)/i_a +
-            Math.pow(r_bp.cross(normal), 2)/i_b);
-
-        // alert("Self: " + advanced_self.position +
-            // "\nOther: " + other.position + 
-            // "\nIntersection: " + intersection_point + 
-            // "\nImpulse: " + impulse +
-            // "\nVelocity: " + v_ab1.dot(normal) +
-            // "\nTerm: " + (1.0/m_a + 1.0/m_b));
-
-        const d_v_a = normal.multiply(impulse / m_a);
-        const d_v_b = normal.multiply(-impulse / m_b);
-
-        const d_w_a = r_ap.cross(normal.multiply(impulse)) / i_a;
-        const d_w_b = -r_bp.cross(normal.multiply(impulse)) / i_b;
-
-        const new_delta_p = delta_p.rotate(-normal.angle()).resetX().rotate(normal.angle());
-
-        return collide_rec(delta_v_a.add_vector(d_v_a), delta_w_a + d_w_a,
-                           delta_v_b.add_vector(d_v_b), delta_w_b + d_w_b, new_delta_p,
-                           remaining_intersections.shift());
-      }
-
-      const delta = collide_rec(Vector2D.empty, 0, Vector2D.empty, 0, delta_position,
-                                collision.intersections);
-
-      const updated_self = this.copy({
-          velocity: this.velocity.add_vector(delta.d_v_a),
-          angular_velocity: this.angular_velocity + delta.d_w_a
+            return projected_l1.is_intersecting(projected_l2);
+          });
       });
-      const updated_other = other.copy({
-          velocity: other.velocity.add_vector(delta.d_v_b),
-          angular_velocity: other.angular_velocity + delta.d_w_b
-      });
-      const still_colliding = this.move(delta.d_p).calculate_collision(other).collided();
 
-      return {"game_set": game_set.replace_element(updated_self).replace_element(updated_other),
-              "delta_position": still_colliding ? Vector2D.empty : delta.d_p,
-              "delta_angle": 0};
-    }
+    return new Collision(
+      intersection_results
+        .filter(x => x.intersection_exists)
+        .toList());
   }
 
   public move(vector: Vector2D): PhysicalObject {

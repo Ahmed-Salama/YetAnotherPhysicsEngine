@@ -15,6 +15,7 @@ export default class PhysicalObject extends GameElement {
   public angular_velocity: number;
   public mass: number;
   public moment_of_inertia: number;
+  public center_of_mass: Vector2D;
   public is_ground: boolean;
   public lines: Immutable.List<Line>;
 
@@ -38,17 +39,15 @@ export default class PhysicalObject extends GameElement {
               (Math.pow(line.start_position.length(), 2) +
                Math.pow(line.end_position.length(), 2)),
           0);
-  }
 
-  public center_of_mass(): Vector2D {
-    const contribution_ratio = 1.0 / (2 * this.lines.size);
-    return this.lines
-            .reduce(
-              (com, line) =>
-                com
-                  .add_vector(line.start_position.multiply(contribution_ratio))
-                  .add_vector(line.end_position.multiply(contribution_ratio)),
-              Vector2D.empty);
+    this.center_of_mass = 
+      this.lines
+        .reduce(
+          (com, line) =>
+            com
+              .add_vector(line.start_position.multiply(contribution_ratio))
+              .add_vector(line.end_position.multiply(contribution_ratio)),
+          Vector2D.empty);
   }
 
   protected _define_attributes() {
@@ -168,7 +167,7 @@ export default class PhysicalObject extends GameElement {
     });
 
     if (!this.is_ground) {
-      this._draw_circle(this.center_of_mass(), 1, 2, "black", ctx, camera_position);
+      this._draw_circle(this.center_of_mass, 1, 2, "black", ctx, camera_position);
     }
 
     this._stroke_line(Vector2D.empty, this.velocity, "green", ctx, camera_position);

@@ -7,7 +7,8 @@ export default class Constants {
     [32, 'space'],
     [65, 'A'],
     [83, 'S'],
-    [68, 'D']
+    [68, 'D'],
+    [70, 'nitro']
   ]);
 
   public static readonly key_pressed = new Map([

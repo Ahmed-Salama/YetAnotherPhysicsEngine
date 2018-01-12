@@ -162,7 +162,7 @@ export default class PhysicalSetup extends GameElement {
     
         const normal = intersection.other_line.normal(); 
         const r_ap = o_a_updated.position
-                      .add_vector(o_a_updated.center_of_mass())
+                      .add_vector(o_a_updated.center_of_mass)
                       .to(intersection_point);
 
         const v_a1 = o_a_updated.velocity;
@@ -225,10 +225,10 @@ export default class PhysicalSetup extends GameElement {
         const v_b1 = o_b.velocity;
 
         const r_ap = o_a_updated.position
-                      .add_vector(o_a_updated.center_of_mass())
+                      .add_vector(o_a_updated.center_of_mass)
                       .to(intersection_point);
         const r_bp = o_b.position
-                      .add_vector(o_b.center_of_mass())
+                      .add_vector(o_b.center_of_mass)
                       .to(intersection_point);
 
         const w_a1 = o_a_updated.angular_velocity;
@@ -251,16 +251,16 @@ export default class PhysicalSetup extends GameElement {
         const normal_reverse = normal.reverse();
         const new_delta_p = delta_p
                               .rotate(-normal_reverse.angle())
-                              .mapX(x => Math.max(0, x))
+                              .resetX()
                               .rotate(normal_reverse.angle());
 
         // New velocities calculated based on impulse and contact forces
         const contact_velocity_a = normal_reverse
                                      .multiply(intersection_weight)
-                                     .multiply(delta_p.length() - new_delta_p.length() + contact_force_coeff * m_b / (m_a + m_b));
+                                     .multiply(contact_force_coeff * m_b / (m_a + m_b));
         const contact_velocity_b = normal
                                      .multiply(intersection_weight)
-                                     .multiply(delta_p.length() - new_delta_p.length() + contact_force_coeff * m_a / (m_a + m_b));
+                                     .multiply(contact_force_coeff * m_a / (m_a + m_b));
 
         const d_v_a = normal.multiply(impulse / m_a).add_vector(contact_velocity_a);
         const d_v_b = normal.multiply(-impulse / m_b).add_vector(contact_velocity_b);

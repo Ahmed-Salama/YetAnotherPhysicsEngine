@@ -20,7 +20,7 @@ export default class Car extends PhysicalObject {
   public nitro_state: string;
   public flip_x_state: string;
   public flip_y_state: string;
-  public nitro: Vector2D;
+  public forward: Vector2D;
   public jumper: Vector2D;
   public tires: Immutable.List<Vector2D>;
   public direction_x: number;
@@ -70,7 +70,7 @@ export default class Car extends PhysicalObject {
                                             elasticity[i]));
     }
 
-    this.nitro = new Vector2D(-20 / f, 0);
+    this.forward = new Vector2D(-20 / f, 0);
     this.jumper = new Vector2D(0, 14 / f);
     this.tires = Immutable.List([new Vector2D(-16 / f, 14 / f), new Vector2D(16 / f, 14 / f)]);
   }
@@ -78,9 +78,10 @@ export default class Car extends PhysicalObject {
   protected _mirrorX(): Car {
     return this.copy({
         lines: this.lines.map(line => line.flipX()).toList(),
-        nitro: this.nitro.flipX(),
+        forward: this.forward.flipX(),
         jumper: this.jumper.flipX(),
         tires: this.tires.map(tire => tire.flipX()).toList(),
+        center_of_mass: this.center_of_mass.flipX(),
         direction_x: this.direction_x * -1
     });
   }
@@ -88,9 +89,10 @@ export default class Car extends PhysicalObject {
   protected _mirrorY(): Car {
     return this.copy({
         lines: this.lines.map(line => line.flipY()).toList(),
-        nitro: this.nitro.flipY(),
+        forward: this.forward.flipY(),
         jumper: this.jumper.flipY(),
         tires: this.tires.map(tire => tire.flipY()).toList(),
+        center_of_mass: this.center_of_mass.flipY(),
         direction_y: this.direction_y * -1
     });
   }
@@ -123,15 +125,34 @@ export default class Car extends PhysicalObject {
     return is_flipping_y ? after_flip_y_input._mirrorY() : after_flip_y_input;
   }
 
+  private _apply_ground_movement_input(time_unit: number): Car {
+    const movement_added_velocity = 
+        (this.touching_ground ? 1 : 0) *
+        (Constants.key_pressed.get("down") * -1 +
+        Constants.key_pressed.get("up"));
+
+    const movement_vectory = 
+      this.forward
+        .reverse()
+        .normalize()
+        .multiply(movement_added_velocity)
+        .rotate(this.angle)
+        .multiply(Car.NITRO_STRENGTH);
+
+    return this.copy({
+        velocity: this.velocity.add_vector(movement_vectory.multiply(time_unit * 1.0 / 1000))
+    });
+  }
+
   private _apply_nitro_input(time_unit: number): Car {
     const after_nitro_input: Car = this.copy({
-      nitro_state: Constants.key_pressed.get("up") ? "active" : "idle"
+      nitro_state: Constants.key_pressed.get("nitro") ? "active" : "idle"
     });
 
     const is_nitro_active = after_nitro_input.nitro_state == "active";
 
     const nitro_vector = 
-      this.nitro
+      this.forward
         .reverse()
         .normalize()
         .multiply(is_nitro_active ? 1 : 0)
@@ -224,6 +245,7 @@ export default class Car extends PhysicalObject {
       new PipelineTransformer(this._apply_flip_x_input, []),
       new PipelineTransformer(this._apply_flip_y_input, []),
       new PipelineTransformer(this._apply_nitro_input, [time_unit]),
+      new PipelineTransformer(this._apply_ground_movement_input, [time_unit]),
       new PipelineTransformer(this._apply_jump_reset, [other_objects]),
       new PipelineTransformer(this._apply_jump_input, [time_unit]),
       new PipelineTransformer(this._apply_rotation_input, [time_unit]),
@@ -246,7 +268,7 @@ export default class Car extends PhysicalObject {
       ctx.strokeStyle = "red";
       super.draw(ctx, camera_position);
 
-      this._draw_circle(this.nitro, 1, 6, "violet", ctx, camera_position);
+      this._draw_circle(this.forward, 1, 6, "violet", ctx, camera_position);
       this._draw_circle(this.jumper, 1, 6, this.jump_state == "station" ? "yellow" : "orange", ctx, camera_position);
 
       this.tires.forEach(tire => self._draw_circle(tire, 1, 2, "red", ctx, camera_position));

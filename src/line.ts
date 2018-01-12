@@ -48,15 +48,15 @@ export class Line extends Entity {
 
   public flipX(): Line {
     return this.copy({
-      start_position: this.start_position.flipX(),
-      end_position: this.end_position.flipX()
+      start_position: this.end_position.flipX(),
+      end_position: this.start_position.flipX()
     }) as Line;
   }
 
   public flipY(): Line {
     return this.copy({
-      start_position: this.start_position.flipY(),
-      end_position: this.end_position.flipY()
+      start_position: this.end_position.flipY(),
+      end_position: this.start_position.flipY()
     }) as Line;
   }
 

@@ -11,7 +11,7 @@ import { Collision } from './collision';
 export default class Car extends PhysicalObject {
   public static readonly NITRO_STRENGTH = 20;
   public static readonly ROTATION_STRENGTH = 3;
-  public static readonly JUMP_STRENGTH = 20;
+  public static readonly JUMP_STRENGTH = 18;
 
   public flying_state: string;
   public jump_state: string;
@@ -22,8 +22,10 @@ export default class Car extends PhysicalObject {
   public flip_y_state: string;
   public nitro: Vector2D;
   public jumper: Vector2D;
+  public tires: Immutable.List<Vector2D>;
   public direction_x: number;
   public direction_y: number;
+  public touching_ground: boolean;
 
   constructor(initialize: boolean) {
       super(initialize);
@@ -43,6 +45,7 @@ export default class Car extends PhysicalObject {
     this.direction_x = 1;
     this.direction_y = 1;
     this.name = "car";
+    this.touching_ground = false;
   }
 
   protected _build_lines() {
@@ -69,6 +72,7 @@ export default class Car extends PhysicalObject {
 
     this.nitro = new Vector2D(-20 / f, 0);
     this.jumper = new Vector2D(0, 14 / f);
+    this.tires = Immutable.List([new Vector2D(-16 / f, 14 / f), new Vector2D(16 / f, 14 / f)]);
   }
 
   protected _mirrorX(): Car {
@@ -76,6 +80,7 @@ export default class Car extends PhysicalObject {
         lines: this.lines.map(line => line.flipX()).toList(),
         nitro: this.nitro.flipX(),
         jumper: this.jumper.flipX(),
+        tires: this.tires.map(tire => tire.flipX()).toList(),
         direction_x: this.direction_x * -1
     });
   }
@@ -85,6 +90,7 @@ export default class Car extends PhysicalObject {
         lines: this.lines.map(line => line.flipY()).toList(),
         nitro: this.nitro.flipY(),
         jumper: this.jumper.flipY(),
+        tires: this.tires.map(tire => tire.flipY()).toList(),
         direction_y: this.direction_y * -1
     });
   }
@@ -137,6 +143,27 @@ export default class Car extends PhysicalObject {
     });
   }
 
+  private _are_tires_touching_ground(grounds: Immutable.List<PhysicalObject>): boolean {
+    const TIRE_RADIUS = 3;
+    const tire_to_ground_distance = (tire: Vector2D, ground: PhysicalObject): number => {
+      const projected_tire = tire.rotate(this.angle).add_vector(this.position);
+      return ground.lines.map(line => line.offset(ground.position).rotate(ground.angle).point_distance(projected_tire)).min();
+    }
+    return this.tires.every(tire => grounds.some(ground => tire_to_ground_distance(tire, ground) < TIRE_RADIUS));
+  }
+
+  private _apply_jump_reset(other_objects: Immutable.List<PhysicalObject>): PhysicalObject {
+    if (this._are_tires_touching_ground(other_objects.filter(o => o.is_ground).toList())) {
+      if (this.jump_timer > 0) {
+        return this.copy({ touching_ground: true });
+      } else {
+        return this.copy({ jump_count: 2, touching_ground: true });
+      }
+    } else {
+      return this.copy({ touching_ground: false });
+    }
+  }
+
   private _apply_jump_input(time_unit: number): Car {
     const after_jump_input: Car = Constants.key_pressed.get("A") ?
         (this.jump_state == "station" && this.jump_count > 0 ?
@@ -176,20 +203,11 @@ export default class Car extends PhysicalObject {
     });
   }
 
-  private _updated_jump_state_after_physics(collided_objects: Immutable.List<PhysicalObject>): Car {
-    const collided_with_ground = collided_objects.some(object => object.is_ground);
-
-    if (collided_with_ground) {
-      return this.copy({ jump_count: 2 });
-    } else {
-      return this;
-    }
-  }
-
   private _apply_rotation_input(time_unit: number): Car {
     const angular_force = 
-        Constants.key_pressed.get("left") * -1 +
-        Constants.key_pressed.get("right");
+        (this.touching_ground ? 0 : 1) *
+        (Constants.key_pressed.get("left") * -1 +
+        Constants.key_pressed.get("right"));
 
     const angular_velocity_input = 
       Car.ROTATION_STRENGTH *
@@ -201,11 +219,12 @@ export default class Car extends PhysicalObject {
     });
   }
 
-  public updated(time_unit: number): Car {
+  public updated_before_collision(time_unit: number, other_objects: Immutable.List<PhysicalObject>): Car {
     const pipeline = new Pipeline<PhysicalObject>(Immutable.List([
       new PipelineTransformer(this._apply_flip_x_input, []),
       new PipelineTransformer(this._apply_flip_y_input, []),
       new PipelineTransformer(this._apply_nitro_input, [time_unit]),
+      new PipelineTransformer(this._apply_jump_reset, [other_objects]),
       new PipelineTransformer(this._apply_jump_input, [time_unit]),
       new PipelineTransformer(this._apply_rotation_input, [time_unit]),
       new PipelineTransformer(this._updated_with_physics, [time_unit])
@@ -215,11 +234,7 @@ export default class Car extends PhysicalObject {
   }
 
   public updated_with_collisions(collided_objects: Immutable.List<PhysicalObject>): Car {
-    const pipeline = new Pipeline<Car>(Immutable.List([
-      new PipelineTransformer(this._updated_jump_state_after_physics, [collided_objects]),
-    ]));
-
-    return pipeline.execute(this);
+    return this;
   }
 
   public draw(ctx: CanvasRenderingContext2D, camera_position: Vector2D) {
@@ -232,8 +247,9 @@ export default class Car extends PhysicalObject {
       super.draw(ctx, camera_position);
 
       this._draw_circle(this.nitro, 1, 6, "violet", ctx, camera_position);
-      this._draw_circle(this.jumper, 1, 6,
-                        this.jump_state == "station" ? "yellow" : "orange", ctx, camera_position);
+      this._draw_circle(this.jumper, 1, 6, this.jump_state == "station" ? "yellow" : "orange", ctx, camera_position);
+
+      this.tires.forEach(tire => self._draw_circle(tire, 1, 2, "red", ctx, camera_position));
     } else {
       const line_to = (x: number, y: number) => {
         const vector = this._camera_translate(new Vector2D(x / f, y / f), camera_position);

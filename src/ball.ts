@@ -37,7 +37,7 @@ export default class Ball extends PhysicalObject {
     }
   }
 
-  public updated(time_unit: number): GameElement {
+  public updated_before_collision(time_unit: number, other_objects: Immutable.List<PhysicalObject>): PhysicalObject {
     return this._updated_with_physics(time_unit) as Ball;
   }
 

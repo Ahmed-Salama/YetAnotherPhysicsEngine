@@ -52,8 +52,7 @@ export default class GameSet extends GameElement {
     const object = this.objects.get(object_id);
 
     // Calculate updated object
-    const next_state = object.updated(time_unit) as PhysicalObject;
-
+    const next_state = object.updated_before_collision(time_unit, this.filter_objects(o => o.id != object.id).toList()) as PhysicalObject;
     const next_state_reset_translation = next_state.copy<PhysicalObject>({
       position: object.position,
       angle: object.angle
@@ -127,7 +126,7 @@ export default class GameSet extends GameElement {
   }
 
   public _collide_object_plus_delta_with_another(o_a: PhysicalObject, o_a_delta_position: Vector2D, o_a_delta_angle: number, o_b: PhysicalObject) {
-    const contact_force_coeff = 3;
+    const contact_force_coeff = 2;
     const o_a_updated = o_a.move(o_a_delta_position).rotate(o_a_delta_angle);
 
     const collision = o_a_updated.calculate_collision(o_b);
@@ -163,7 +162,7 @@ export default class GameSet extends GameElement {
     
         const normal = intersection.other_line.normal(); 
         const r_ap = o_a_updated.position
-                      .add_vector(o_a_updated.center_of_mass)
+                      .add_vector(o_a_updated.center_of_mass())
                       .to(intersection_point);
 
         const v_a1 = o_a_updated.velocity;
@@ -226,10 +225,10 @@ export default class GameSet extends GameElement {
         const v_b1 = o_b.velocity;
 
         const r_ap = o_a_updated.position
-                      .add_vector(o_a_updated.center_of_mass)
+                      .add_vector(o_a_updated.center_of_mass())
                       .to(intersection_point);
         const r_bp = o_b.position
-                      .add_vector(o_a_updated.center_of_mass)
+                      .add_vector(o_b.center_of_mass())
                       .to(intersection_point);
 
         const w_a1 = o_a_updated.angular_velocity;
@@ -247,8 +246,7 @@ export default class GameSet extends GameElement {
         const i_b = o_b.moment_of_inertia;
 
         const impulse = - intersection_weight * (1 + elasticity) * v_ab1.dot(normal) /
-                        (1.0/m_a + 1.0/m_b + Math.pow(r_ap.cross(normal), 2)/i_a +
-                        Math.pow(r_bp.cross(normal), 2)/i_b);
+                        (1.0/m_a + 1.0/m_b + Math.pow(r_ap.cross(normal), 2)/i_a + Math.pow(r_bp.cross(normal), 2)/i_b);
 
         const normal_reverse = normal.reverse();
         const new_delta_p = delta_p

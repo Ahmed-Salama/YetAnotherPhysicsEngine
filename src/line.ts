@@ -65,13 +65,21 @@ export class Line extends Entity {
         ", end: " + this.end_position.toString() + "}"; 
   }
 
+  public point_distance(p: Vector2D): number {
+    const start_p = this.start_position.to(p);
+    const line = this.start_position.to(this.end_position);
+    const cross = line.cross(start_p);
+    const line_length = line.length();
+    return Math.abs(cross / line_length);
+  }
+
   public is_intersecting(l2: Line): Intersection {
-    const l1_constants = this.get_constants();
+    const l1_constants = this._get_constants();
     const A1 = l1_constants[0];
     const B1 = l1_constants[1];
     const C1 = l1_constants[2];
 
-    const l2_constants = l2.get_constants();
+    const l2_constants = l2._get_constants();
     const A2 = l2_constants[0];
     const B2 = l2_constants[1];
     const C2 = l2_constants[2];
@@ -85,11 +93,11 @@ export class Line extends Entity {
     const x = (B2 * C1 - B1 * C2) / det;
     const y = (A1 * C2 - A2 * C1) / det;
 
-    return new Intersection(this, l2, this.on_segment(x, y) && l2.on_segment(x, y),
+    return new Intersection(this, l2, this._on_segment(x, y) && l2._on_segment(x, y),
                             new Vector2D(x, y));
   }
 
-  public on_segment(x: number, y: number) {
+  private _on_segment(x: number, y: number) {
     const X1 = this.start_position.x;
     const X2 = this.end_position.x;
     const Y1 = this.start_position.y;
@@ -99,7 +107,7 @@ export class Line extends Entity {
            Math.min(Y1, Y2) - Constants.eps <= y && y <= Math.max(Y1, Y2) + Constants.eps;
   }
 
-  public get_constants() {
+  private _get_constants() {
     const X1 = this.start_position.x;
     const X2 = this.end_position.x;
     const Y1 = this.start_position.y;

@@ -62,7 +62,11 @@ export default class PhysicalObject extends GameElement {
     this.lines = Immutable.List();
   }
 
-  public _updated_physics(time_unit: number): PhysicalObject {
+  public updated_with_collisions(collided_objects: Immutable.List<PhysicalObject>): PhysicalObject {
+    throw new Error('Unsupported method');
+  }
+
+  public _updated_with_physics(time_unit: number): PhysicalObject {
     const time_fraction = time_unit * 1.0 / 1000;
 
     const new_velocity = 

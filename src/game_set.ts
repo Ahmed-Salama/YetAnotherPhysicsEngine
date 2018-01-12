@@ -66,10 +66,10 @@ export default class GameSet extends GameElement {
     const all_objects_except_me = this.filter_objects(o => o.id != object.id).map(e => e.id);
     const {reduced_delta_position: after_collision_delta_position,
            reduced_delta_angle: after_collision_delta_angle,
-           collided,
+           collided_objects,
            reduced_game_set: after_collision_game_set} = 
            all_objects_except_me.reduce(
-            ({reduced_delta_position, reduced_delta_angle, collided, reduced_game_set}, to_collide) => {
+            ({reduced_delta_position, reduced_delta_angle, collided_objects, reduced_game_set}, to_collide) => {
               const updated_object = reduced_game_set.objects.get(object.id) as PhysicalObject;
               const updated_to_collide = reduced_game_set.objects.get(to_collide) as PhysicalObject;
               
@@ -84,17 +84,19 @@ export default class GameSet extends GameElement {
 
               return {reduced_delta_position: next_delta_position,
                       reduced_delta_angle: next_delta_angle,
-                      collided: collided || collision.collided(), 
+                      collided_objects: collision.collided() ? collided_objects.push(updated_to_collide) : collided_objects, 
                       reduced_game_set: next_game_set};
             },
             { reduced_delta_position: next_state_delta_position,
               reduced_delta_angle: next_state_delta_angle, 
-              collided: false, 
+              collided_objects: Immutable.List<PhysicalObject>(), 
               reduced_game_set: this.replace_element(next_state_reset_translation) });
 
     const after_collision_object = after_collision_game_set.objects.get(object.id);
-    const delta_scale = collided ? 
-      after_collision_game_set._is_object_plus_delta_collision_free(after_collision_object, 
+    const next_state_after_collision_object = after_collision_object.updated_with_collisions(collided_objects) as PhysicalObject;
+
+    const delta_scale = collided_objects.size > 0 ? 
+      after_collision_game_set._is_object_plus_delta_collision_free(next_state_after_collision_object, 
                                                                     after_collision_delta_position, 
                                                                     after_collision_delta_angle) :
       1;
@@ -103,7 +105,7 @@ export default class GameSet extends GameElement {
     const final_delta_position = after_collision_delta_position.multiply(delta_scale);
     const final_delta_angle = after_collision_delta_angle * delta_scale;
 
-    const updated_object_with_delta = after_collision_object
+    const updated_object_with_delta = next_state_after_collision_object
                                         .move(final_delta_position)
                                         .rotate(final_delta_angle);
 

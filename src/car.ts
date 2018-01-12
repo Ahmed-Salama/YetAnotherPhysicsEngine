@@ -6,6 +6,7 @@ import PhysicalObject from './physical_object';
 import GameElement from './game_element';
 import Pipeline from './pipeline';
 import PipelineTransformer from './pipeline_transformer';
+import { Collision } from './collision';
 
 export default class Car extends PhysicalObject {
   public static readonly NITRO_STRENGTH = 20;
@@ -15,6 +16,7 @@ export default class Car extends PhysicalObject {
   public flying_state: string;
   public jump_state: string;
   public jump_timer: number;
+  public jump_count: number;
   public nitro_state: string;
   public flip_x_state: string;
   public flip_y_state: string;
@@ -34,6 +36,7 @@ export default class Car extends PhysicalObject {
     this.flying_state = "flying";
     this.jump_state = "station";
     this.jump_timer = 0;
+    this.jump_count = 0;
     this.nitro_state = "idle";
     this.flip_x_state = "idle";
     this.flip_y_state = "idle";
@@ -136,11 +139,12 @@ export default class Car extends PhysicalObject {
 
   private _apply_jump_input(time_unit: number): Car {
     const after_jump_input: Car = Constants.key_pressed.get("A") ?
-        (this.jump_state == "station" ?
+        (this.jump_state == "station" && this.jump_count > 0 ?
             this.copy({
               flying_state: "flying",
               jump_state: "jumping",
-              jump_timer: Constants.jump_timer_duration
+              jump_timer: Constants.jump_timer_duration,
+              jump_count: this.jump_count - 1
             }) :
             this.copy({
               jump_timer: Math.max(0, this.jump_timer - 1)
@@ -172,6 +176,16 @@ export default class Car extends PhysicalObject {
     });
   }
 
+  private _updated_jump_state_after_physics(collided_objects: Immutable.List<PhysicalObject>): Car {
+    const collided_with_ground = collided_objects.some(object => object.is_ground);
+
+    if (collided_with_ground) {
+      return this.copy({ jump_count: 2 });
+    } else {
+      return this;
+    }
+  }
+
   private _apply_rotation_input(time_unit: number): Car {
     const angular_force = 
         Constants.key_pressed.get("left") * -1 +
@@ -187,14 +201,22 @@ export default class Car extends PhysicalObject {
     });
   }
 
-  public updated(time_unit: number): GameElement {
+  public updated(time_unit: number): Car {
     const pipeline = new Pipeline<PhysicalObject>(Immutable.List([
       new PipelineTransformer(this._apply_flip_x_input, []),
       new PipelineTransformer(this._apply_flip_y_input, []),
       new PipelineTransformer(this._apply_nitro_input, [time_unit]),
       new PipelineTransformer(this._apply_jump_input, [time_unit]),
       new PipelineTransformer(this._apply_rotation_input, [time_unit]),
-      new PipelineTransformer(this._updated_physics, [time_unit])
+      new PipelineTransformer(this._updated_with_physics, [time_unit])
+    ]));
+
+    return pipeline.execute(this) as Car;
+  }
+
+  public updated_with_collisions(collided_objects: Immutable.List<PhysicalObject>): Car {
+    const pipeline = new Pipeline<Car>(Immutable.List([
+      new PipelineTransformer(this._updated_jump_state_after_physics, [collided_objects]),
     ]));
 
     return pipeline.execute(this);

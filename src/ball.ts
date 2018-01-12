@@ -38,7 +38,11 @@ export default class Ball extends PhysicalObject {
   }
 
   public updated(time_unit: number): GameElement {
-    return this._updated_physics(time_unit) as Ball;
+    return this._updated_with_physics(time_unit) as Ball;
+  }
+
+  public updated_with_collisions(collided_objects: Immutable.List<PhysicalObject>): Ball {
+    return this;
   }
 
   public draw(ctx: CanvasRenderingContext2D, camera_position: Vector2D) {

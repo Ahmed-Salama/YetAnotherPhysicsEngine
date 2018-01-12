@@ -1,7 +1,7 @@
 import Utils from './utils';
 import Vector2D from './vector2d'
 import Constants from './constants'
-import GameSet from './game_set'
+import PhysicalSetup from './physical_setup'
 
 $(document).ready(() => {
   const body = $('body');
@@ -23,20 +23,20 @@ $(document).ready(() => {
   const $time = Rx.Observable.interval(Constants.time_step)
       .timeInterval();
 
-  $time.scan((game_set, time_unit) => {
+  $time.scan((physical_setup, time_unit) => {
       if (Constants.paused) {
-        return game_set;
+        return physical_setup;
       } else {
-        return game_set.updated(Constants.time_step * Constants.time_scale);
+        return physical_setup.updated(Constants.time_step * Constants.time_scale);
       }
-    }, new GameSet(true))
-    .subscribe((game_set: GameSet) => {
+    }, new PhysicalSetup(true))
+    .subscribe((physical_setup: PhysicalSetup) => {
       ctx.save();
       ctx.fillStyle = Constants.clear_rect_color;
       ctx.fillRect(0, 0, Constants.canvas_size, Constants.canvas_size);
       ctx.restore();
 
-      game_set.draw(ctx);
+      physical_setup.draw(ctx);
     });
 });
 

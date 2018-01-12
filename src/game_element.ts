@@ -1,4 +1,4 @@
-import GameSet from './game_set'
+import PhysicalSetup from './physical_setup'
 import Entity from './entity';
 
 export default class GameElement extends Entity {

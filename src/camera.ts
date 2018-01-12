@@ -1,5 +1,5 @@
 import Entity from './entity'
-import GameSet from './game_set'
+import PhysicalSetup from './physical_setup'
 import PhysicalObject from './physical_object'
 import Vector2D from './vector2d'
 
@@ -14,8 +14,8 @@ export default class Camera extends Entity {
     return this.copy({attached_object_id: object.id});
   }
 
-  public get_coordinates(game_set: GameSet): Vector2D {
-    const attached_object = game_set.objects.get(this.attached_object_id) as PhysicalObject;
+  public get_coordinates(physical_setup: PhysicalSetup): Vector2D {
+    const attached_object = physical_setup.objects.get(this.attached_object_id) as PhysicalObject;
     return attached_object.position;
   }
 }

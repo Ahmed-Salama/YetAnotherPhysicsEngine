@@ -1,5 +1,5 @@
 import Constants from './constants'
-import GameSet from './game_set'
+import PhysicalSetup from './physical_setup'
 import Vector2D from './vector2d'
 import {Line} from './line'
 import PhysicalObject from './physical_object';

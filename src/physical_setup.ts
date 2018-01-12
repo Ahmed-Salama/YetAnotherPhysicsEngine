@@ -10,7 +10,7 @@ import {Collision, CollisionResult} from './collision'
 import {Intersection, Line} from './line'
 import Constants from './constants'
 
-export default class GameSet extends GameElement {
+export default class PhysicalSetup extends GameElement {
   public objects: Immutable.Map<number, PhysicalObject>;
   public camera: Camera;
 
@@ -42,13 +42,13 @@ export default class GameSet extends GameElement {
                                         .toList();
 
     return all_objects_except_ground.reduce(
-      (current_game_set, object_id) =>
-        current_game_set._updated_per_object(time_unit, object_id),
-      this as GameSet
+      (current_physical_setup, object_id) =>
+        current_physical_setup._updated_per_object(time_unit, object_id),
+      this as PhysicalSetup
     ); 
   }
 
-  private _updated_per_object(time_unit: number, object_id: number): GameSet {
+  private _updated_per_object(time_unit: number, object_id: number): PhysicalSetup {
     const object = this.objects.get(object_id);
 
     // Calculate updated object
@@ -66,16 +66,16 @@ export default class GameSet extends GameElement {
     const {reduced_delta_position: after_collision_delta_position,
            reduced_delta_angle: after_collision_delta_angle,
            collided_objects,
-           reduced_game_set: after_collision_game_set} = 
+           reduced_physical_setup: after_collision_physical_setup} = 
            all_objects_except_me.reduce(
-            ({reduced_delta_position, reduced_delta_angle, collided_objects, reduced_game_set}, to_collide) => {
-              const updated_object = reduced_game_set.objects.get(object.id) as PhysicalObject;
-              const updated_to_collide = reduced_game_set.objects.get(to_collide) as PhysicalObject;
+            ({reduced_delta_position, reduced_delta_angle, collided_objects, reduced_physical_setup}, to_collide) => {
+              const updated_object = reduced_physical_setup.objects.get(object.id) as PhysicalObject;
+              const updated_to_collide = reduced_physical_setup.objects.get(to_collide) as PhysicalObject;
               
-              const {next_game_set, 
+              const {next_physical_setup, 
                      next_delta_position, 
                      next_delta_angle, 
-                     collision} = reduced_game_set._collide_object_plus_delta_with_another(
+                     collision} = reduced_physical_setup._collide_object_plus_delta_with_another(
                                     updated_object,
                                     reduced_delta_position,
                                     reduced_delta_angle,
@@ -84,18 +84,18 @@ export default class GameSet extends GameElement {
               return {reduced_delta_position: next_delta_position,
                       reduced_delta_angle: next_delta_angle,
                       collided_objects: collision.collided() ? collided_objects.push(updated_to_collide) : collided_objects, 
-                      reduced_game_set: next_game_set};
+                      reduced_physical_setup: next_physical_setup};
             },
             { reduced_delta_position: next_state_delta_position,
               reduced_delta_angle: next_state_delta_angle, 
               collided_objects: Immutable.List<PhysicalObject>(), 
-              reduced_game_set: this.replace_element(next_state_reset_translation) });
+              reduced_physical_setup: this.replace_element(next_state_reset_translation) });
 
-    const after_collision_object = after_collision_game_set.objects.get(object.id);
+    const after_collision_object = after_collision_physical_setup.objects.get(object.id);
     const next_state_after_collision_object = after_collision_object.updated_with_collisions(collided_objects) as PhysicalObject;
 
     const delta_scale = collided_objects.size > 0 ? 
-      after_collision_game_set._is_object_plus_delta_collision_free(next_state_after_collision_object, 
+      after_collision_physical_setup._is_object_plus_delta_collision_free(next_state_after_collision_object, 
                                                                     after_collision_delta_position, 
                                                                     after_collision_delta_angle) :
       1;
@@ -108,8 +108,8 @@ export default class GameSet extends GameElement {
                                         .move(final_delta_position)
                                         .rotate(final_delta_angle);
 
-    const final_game_set = after_collision_game_set.replace_element(updated_object_with_delta);
-    return final_game_set;
+    const final_physical_setup = after_collision_physical_setup.replace_element(updated_object_with_delta);
+    return final_physical_setup;
   }
 
   private _is_object_plus_delta_collision_free(object: PhysicalObject, delta_p: Vector2D, delta_a: number) {
@@ -126,13 +126,13 @@ export default class GameSet extends GameElement {
   }
 
   public _collide_object_plus_delta_with_another(o_a: PhysicalObject, o_a_delta_position: Vector2D, o_a_delta_angle: number, o_b: PhysicalObject) {
-    const contact_force_coeff = 2;
+    const contact_force_coeff = 3;
     const o_a_updated = o_a.move(o_a_delta_position).rotate(o_a_delta_angle);
 
     const collision = o_a_updated.calculate_collision(o_b);
     if (!collision.collided()) {
       return {
-        next_game_set: this as GameSet,
+        next_physical_setup: this as PhysicalSetup,
         next_delta_position: o_a_delta_position,
         next_delta_angle: o_a_delta_angle,
         collision: collision
@@ -191,7 +191,7 @@ export default class GameSet extends GameElement {
       const delta = collide_rec(Vector2D.empty, 0, o_a_delta_position, collision.intersections);
 
       return {
-        next_game_set: this.replace_element(o_a.copy({
+        next_physical_setup: this.replace_element(o_a.copy({
             velocity: o_a.velocity.add_vector(delta.d_v_a),
             angular_velocity: o_a.angular_velocity + delta.d_w_a
         })),
@@ -287,7 +287,7 @@ export default class GameSet extends GameElement {
       });
 
       return {
-        next_game_set: this.replace_element(updated_self).replace_element(updated_other),
+        next_physical_setup: this.replace_element(updated_self).replace_element(updated_other),
         next_delta_position: delta.d_p,
         next_delta_angle: 0,
         collision: collision
@@ -302,7 +302,7 @@ export default class GameSet extends GameElement {
         .forEach((o) => o.draw(ctx, self.camera.get_coordinates(self)));
   }
 
-  public replace_element(element: PhysicalObject): GameSet {
+  public replace_element(element: PhysicalObject): PhysicalSetup {
       return this.copy({ objects: this.objects.set(element.id, element) });
   }
 

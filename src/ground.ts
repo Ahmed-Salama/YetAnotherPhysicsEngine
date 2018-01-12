@@ -1,5 +1,5 @@
 import Constants from './constants'
-import GameSet from './game_set'
+import PhysicalSetup from './physical_setup'
 import Vector2D from './vector2d'
 import {Line} from './line'
 import PhysicalObject from './physical_object';
@@ -52,8 +52,8 @@ export default class Ground extends PhysicalObject {
     }
   }
 
-  public update_game_set(_: number, game_set: GameSet) {
-    return game_set;
+  public update_physical_setup(_: number, physical_setup: PhysicalSetup) {
+    return physical_setup;
   }
 
   public draw(ctx: CanvasRenderingContext2D, camera_position: Vector2D) {

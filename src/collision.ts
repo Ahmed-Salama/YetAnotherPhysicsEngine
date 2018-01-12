@@ -3,7 +3,7 @@ import {Intersection} from './line'
 import Vector2D from './vector2d'
 
 export interface CollisionResult {
-  game_set: Entity;
+  physical_setup: Entity;
   collision?: Collision;
   delta_position: Vector2D;
   delta_angle: number;

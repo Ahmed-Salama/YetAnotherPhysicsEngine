@@ -1,4 +1,3 @@
-import Entity from "./entity";
 import PipelineTransformer from "./pipeline_transformer";
 
 export default class Pipeline<T> {

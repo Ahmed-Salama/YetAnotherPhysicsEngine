@@ -1,14 +1,11 @@
 import Ball from './ball'
 import Camera from './camera'
 import Car from './car'
-import Entity from './entity'
 import GameElement from './game_element'
 import Ground from './ground'
 import PhysicalObject from './physical_object'
 import Vector2D from './vector2d';
-import {Collision, CollisionResult} from './collision'
-import {Intersection, Line} from './line'
-import Constants from './constants'
+import {Intersection} from './line'
 
 export default class PhysicalSetup extends GameElement {
   public objects: Immutable.Map<number, PhysicalObject>;
@@ -37,9 +34,9 @@ export default class PhysicalSetup extends GameElement {
 
   public updated(time_unit: number) {
     const all_objects_except_ground = this
-                                        .filter_objects(o => !o.is_ground)
-                                        .map(o => o.id)
-                                        .toList();
+                                      .filter_objects(o => !o.is_ground)
+                                      .map(o => o.id)
+                                      .toList();
 
     return all_objects_except_ground.reduce(
       (current_physical_setup, object_id) =>

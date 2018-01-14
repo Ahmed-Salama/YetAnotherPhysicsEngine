@@ -1,9 +1,8 @@
 ///<reference path='../node_modules/immutable/dist/immutable.d.ts'/>
-import {Collision, CollisionResult} from './collision'
+import {Collision} from './collision'
 import Constants from './constants'
-import Entity from './entity'
 import Vector2D from './vector2d'
-import {Intersection, Line} from './line'
+import {Line} from './line'
 import GameElement from './game_element';
 
 const gravity_vector = new Vector2D(0, 9.8);

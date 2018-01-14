@@ -1,12 +1,9 @@
 import Constants from './constants'
-import PhysicalSetup from './physical_setup'
 import {Line} from './line'
 import Vector2D from './vector2d'
 import PhysicalObject from './physical_object';
-import GameElement from './game_element';
 import Pipeline from './pipeline';
 import PipelineTransformer from './pipeline_transformer';
-import { Collision } from './collision';
 
 export default class Car extends PhysicalObject {
   public static readonly NITRO_STRENGTH = 20;
@@ -208,7 +205,6 @@ export default class Car extends PhysicalObject {
 
     const car_jumping_index = after_jump_input.jump_timer;
     const car_jumping = after_jump_input.jump_timer > 0;
-    const car_flying = after_jump_input.flying_state == "flying";
 
     const jump_vector = 
       this.jumper

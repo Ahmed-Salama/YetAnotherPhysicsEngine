@@ -1,5 +1,3 @@
-import Entity from "./entity";
-
 export default class PipelineTransformer<T> {
     public method: (..._: any[]) => T;
     public parameters: any[];

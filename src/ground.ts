@@ -18,6 +18,8 @@ export default class Ground extends PhysicalObject {
     this.name = "ground";
     this.is_ground = true;
     this.position = Vector2D.empty;
+    this.mass = Infinity;
+    this.moment_of_inertia = Infinity;
   }
 
   protected _build_lines() {

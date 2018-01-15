@@ -1,14 +1,14 @@
 export default class Constants {
   public static readonly keyDefs = new Map([
     [37, 'left'],
-    [38, 'up'],
+    [38, 'nitro'],
     [39, 'right'],
     [40, 'down'],
     [32, 'space'],
     [65, 'A'],
     [83, 'S'],
     [68, 'D'],
-    [70, 'nitro']
+    // [70, 'nitro']
   ]);
 
   public static readonly key_pressed = new Map([
@@ -31,11 +31,11 @@ export default class Constants {
   public static readonly general_elasticity = 0.7;
   public static readonly inner_field_width = Constants.field_width - 2;
   public static readonly jump_timer_duration = 8;
-  public static readonly time_scale = 2.2;
+  public static readonly time_scale = 2;
   public static readonly time_step = 1000 / Constants.frames_per_second;
   public static readonly tire_elasticity = 0.1;
 
-  public static debugging = false;
+  public static debugging = true;
   public static paused = false;
 
   // colors

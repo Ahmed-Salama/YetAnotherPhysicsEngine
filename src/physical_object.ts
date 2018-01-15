@@ -70,6 +70,14 @@ export default class PhysicalObject extends GameElement {
     throw new Error('Unsupported method');
   }
 
+  public calculate_delta(time_unit: number) {
+    const time_fraction = time_unit * 1.0 / 1000;
+    return {
+      position: this.velocity.multiply(time_fraction),
+      angle: this.angular_velocity * time_fraction
+    };
+  }
+
   public _updated_with_physics(time_unit: number): PhysicalObject {
     const time_fraction = time_unit * 1.0 / 1000;
 
@@ -93,15 +101,15 @@ export default class PhysicalObject extends GameElement {
       0.74;
 
     return this.copy({
-      position:
-        this.position
-          .add_vector(this.velocity.multiply(time_fraction)),
+      // position:
+      //   this.position
+      //     .add_vector(this.velocity.multiply(time_fraction)),
       velocity:
         new_velocity
           .add_vector(velocity_air_drag_vector),
-      angle:
-        this.angle +
-        this.angular_velocity * time_fraction,
+      // angle:
+      //   this.angle +
+      //   this.angular_velocity * time_fraction,
       angular_velocity:
         this.angular_velocity +
         angular_velocity_air_drag * time_fraction
@@ -114,14 +122,16 @@ export default class PhysicalObject extends GameElement {
 
   protected _camera_translate(vector: Vector2D, camera_position: Vector2D): Vector2D {
     const after_position_and_rotation = this._translate(vector);
-    return after_position_and_rotation.add_vector(
-          new Vector2D(
-            - camera_position.x +
-            Constants.canvas_size / (2 * Constants.drawing_scale),
-            0));
+    // const final_translation = after_position_and_rotation.add_vector(
+    //       new Vector2D(
+    //         - camera_position.x +
+    //         Constants.canvas_size / (2 * Constants.drawing_scale),
+    //         0));
+
+    return after_position_and_rotation;
   }
 
-  protected _stroke_line(start: Vector2D, end: Vector2D, color: string,
+  public _stroke_line(start: Vector2D, end: Vector2D, color: string,
                          ctx: CanvasRenderingContext2D, camera_position: Vector2D) {
     ctx.save();
     ctx.strokeStyle = color;
@@ -161,7 +171,7 @@ export default class PhysicalObject extends GameElement {
             start_to_end_vector.length() / 2);
         const normal_start_position = line.start_position.add_vector(mid_point);
         const normal_end_position = line.start_position
-                                        .add_vector(mid_point).add_vector(line.normal());
+                                        .add_vector(mid_point).add_vector(line.normal);
         self._stroke_line(normal_start_position, normal_end_position, "black",
                           ctx, camera_position);
     });
@@ -170,9 +180,27 @@ export default class PhysicalObject extends GameElement {
       this._draw_circle(this.center_of_mass, 1, 2, "black", ctx, camera_position);
     }
 
-    this._stroke_line(Vector2D.empty, this.velocity, "green", ctx, camera_position);
-    this._stroke_line(Vector2D.empty, new Vector2D(8 * this.angular_velocity, 0),
-                      "orange", ctx, camera_position);
+    const _stroke_line_no_angle = (start: Vector2D, end: Vector2D, color: string) => {
+      ctx.save();
+      ctx.strokeStyle = color;
+      ctx.beginPath();
+      const camera = Vector2D.empty;
+      // const camera = new Vector2D(
+      //                 - camera_position.x +
+      //                 Constants.canvas_size / (2 * Constants.drawing_scale),
+      //                 0);
+      const to_draw_start_position = self.position.add_vector(start).add_vector(camera);
+      const to_draw_end_position = self.position.add_vector(end).add_vector(camera);
+      ctx.moveTo(Constants.drawing_scale * to_draw_start_position.x,
+                  Constants.drawing_scale * to_draw_start_position.y);
+      ctx.lineTo(Constants.drawing_scale * to_draw_end_position.x,
+                  Constants.drawing_scale * to_draw_end_position.y);
+      ctx.stroke();
+      ctx.restore();
+    }
+    
+    _stroke_line_no_angle(Vector2D.empty, this.velocity, "green");
+    _stroke_line_no_angle(Vector2D.empty, new Vector2D(8 * this.angular_velocity, 0), "orange");
 
     ctx.restore();
   }

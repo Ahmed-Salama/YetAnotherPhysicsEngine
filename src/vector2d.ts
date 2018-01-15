@@ -83,6 +83,10 @@ export default class Vector2D extends Entity {
   }
 
   public crossW(w: number) {
+    return new Vector2D(this.y * w, this.x * -w);
+  }
+
+  public crossW_inverted(w: number) {
     return new Vector2D(this.y * -w, this.x * w);
   }
 

@@ -24,6 +24,11 @@ $(document).ready(() => {
       .timeInterval();
 
   $time.scan((physical_setup, time_unit) => {
+
+    ctx.save();
+    ctx.fillStyle = Constants.clear_rect_color;
+    ctx.fillRect(0, 0, Constants.canvas_size, Constants.canvas_size);
+    ctx.restore();
       if (Constants.paused) {
         return physical_setup;
       } else {
@@ -31,11 +36,6 @@ $(document).ready(() => {
       }
     }, new PhysicalSetup(true))
     .subscribe((physical_setup: PhysicalSetup) => {
-      ctx.save();
-      ctx.fillStyle = Constants.clear_rect_color;
-      ctx.fillRect(0, 0, Constants.canvas_size, Constants.canvas_size);
-      ctx.restore();
-
       physical_setup.draw(ctx);
     });
 });

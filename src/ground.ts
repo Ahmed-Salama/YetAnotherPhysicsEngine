@@ -38,7 +38,9 @@ export default class Ground extends PhysicalObject {
       var j = (i + 1) % this.points.size;
       const start_position = new Vector2D(points_array[i][0], points_array[i][1]);
       const end_position = new Vector2D(points_array[j][0], points_array[j][1]);
-      this.lines = this.lines.push(new Line(start_position, end_position,
+      this.lines = this.lines.push(new Line(true,
+                                            start_position,
+                                            end_position,
                                             Constants.general_elasticity));
     }
 
@@ -47,7 +49,9 @@ export default class Ground extends PhysicalObject {
       var j = (i + 1) % outer_points_array.length;
       const start_position = new Vector2D(outer_points_array[i][0], outer_points_array[i][1]);
       const end_position = new Vector2D(outer_points_array[j][0], outer_points_array[j][1]);
-      this.outer_lines = this.outer_lines.push(new Line(start_position, end_position,
+      this.outer_lines = this.outer_lines.push(new Line(true,
+                                                        start_position,
+                                                        end_position,
                                                         Constants.general_elasticity));
     }
   }

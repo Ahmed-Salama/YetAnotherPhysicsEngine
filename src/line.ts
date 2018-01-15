@@ -20,12 +20,16 @@ export class Line extends Entity {
   public start_position: Vector2D;
   public end_position: Vector2D;
   public elasticity: number;
+  public normal: Vector2D;
 
-  constructor(start_position: Vector2D, end_position: Vector2D, elasticity: number) {
+  constructor(initialize: boolean, start_position: Vector2D, end_position: Vector2D, elasticity: number, normal_override: Vector2D = null) {
     super();
-    this.start_position = start_position;
-    this.end_position = end_position;
-    this.elasticity = elasticity;
+    if (initialize) {
+      this.start_position = start_position;
+      this.end_position = end_position;
+      this.elasticity = elasticity;
+      this.normal = normal_override ? normal_override : Line.calculate_normal(this.start_position, this.end_position);
+    }
   }
   
   public offset(vector: Vector2D): Line {
@@ -41,22 +45,32 @@ export class Line extends Entity {
       end_position: this.end_position.rotate(angle)
     });
   }
-  
-  public normal(): Vector2D {
-    return this.start_position.to(this.end_position).rotate(Math.PI / 2).normalize();
+
+  private static calculate_normal(start: Vector2D, end: Vector2D): Vector2D {
+    return start.to(end).rotate(Math.PI / 2).normalize();
   }
 
   public flipX(): Line {
+    const start = this.end_position.flipX();
+    const end = this.start_position.flipX();
+    const normal = this.normal.flipX();
+
     return this.copy({
-      start_position: this.end_position.flipX(),
-      end_position: this.start_position.flipX()
+      start_position: start,
+      end_position: end,
+      normal: normal
     }) as Line;
   }
 
   public flipY(): Line {
+    const start = this.end_position.flipY();
+    const end = this.start_position.flipY();
+    const normal = this.normal.flipY();
+
     return this.copy({
-      start_position: this.end_position.flipY(),
-      end_position: this.start_position.flipY()
+      start_position: start,
+      end_position: end,
+      normal: normal
     }) as Line;
   }
 

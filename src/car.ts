@@ -33,7 +33,9 @@ export default class Car extends PhysicalObject {
 
   protected _define_attributes() {
     super._define_attributes();
-    this.position = new Vector2D(60, 85);
+    this.position = new Vector2D(80, 65);
+    this.velocity = new Vector2D(0, -20);
+    this.angular_velocity = 3;
     this.mass = 200;
     this.flying_state = "flying";
     this.jump_state = "station";
@@ -52,9 +54,15 @@ export default class Car extends PhysicalObject {
     super._build_lines();
 
     const f = 3;
-    const points = [[20, 10], [20, 4],
-                    [-2, -7], [-20, -10],
-                    [-20, 10], [-16, 14], [16, 14]];
+    // const points = [[20, 10], [20, 4],
+    //                 [-2, -7], [-20, -10],
+    //                 [-20, 10], [-16, 14], [16, 14]];
+    const points = [[20, 10], [20, -10], [-20, -10], [-20, 10]];
+
+    const up_vector = new Vector2D(0, -1);
+    const normal_overrides = [null, up_vector,
+                              up_vector, null,
+                              null, null, null];
 
     const elasticity = [Constants.general_elasticity, Constants.general_elasticity,
                         Constants.general_elasticity, Constants.general_elasticity,
@@ -65,9 +73,11 @@ export default class Car extends PhysicalObject {
       const j = (i + 1) % points.length;
       const p1 = points[i];
       const p2 = points[j];
-      this.lines = this.lines.push(new Line(new Vector2D(p1[0] / f, p1[1] / f),
+      this.lines = this.lines.push(new Line(true,
+                                            new Vector2D(p1[0] / f, p1[1] / f),
                                             new Vector2D(p2[0] / f, p2[1] / f),
-                                            elasticity[i]));
+                                            elasticity[i],
+                                            null));
     }
 
     this.forward = new Vector2D(-20 / f, 0);
@@ -268,7 +278,7 @@ export default class Car extends PhysicalObject {
       ctx.strokeStyle = "red";
       super.draw(ctx, camera_position);
 
-      this._draw_circle(this.forward, 1, 6, "violet", ctx, camera_position);
+      // this._draw_circle(this.forward, 1, 6, "violet", ctx, camera_position);
       this._draw_circle(this.jumper, 1, 6, this.jump_state == "station" ? "yellow" : "orange", ctx, camera_position);
 
       this.tires.forEach(tire => self._draw_circle(tire, 1, 2, "red", ctx, camera_position));

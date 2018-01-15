@@ -31,7 +31,7 @@ export default class Constants {
   public static readonly general_elasticity = 0.7;
   public static readonly inner_field_width = Constants.field_width - 2;
   public static readonly jump_timer_duration = 8;
-  public static readonly time_scale = 2;
+  public static readonly time_scale = 2.3;
   public static readonly time_step = 1000 / Constants.frames_per_second;
   public static readonly tire_elasticity = 0.1;
 

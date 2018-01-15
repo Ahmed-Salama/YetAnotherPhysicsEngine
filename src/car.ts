@@ -36,7 +36,7 @@ export default class Car extends PhysicalObject {
     this.position = new Vector2D(80, 65);
     this.velocity = new Vector2D(0, -20);
     this.angular_velocity = 3;
-    this.mass = 200;
+    this.mass = 100;
     this.flying_state = "flying";
     this.jump_state = "station";
     this.jump_timer = 0;
@@ -54,10 +54,10 @@ export default class Car extends PhysicalObject {
     super._build_lines();
 
     const f = 3;
-    // const points = [[20, 10], [20, 4],
-    //                 [-2, -7], [-20, -10],
-    //                 [-20, 10], [-16, 14], [16, 14]];
-    const points = [[20, 10], [20, -10], [-20, -10], [-20, 10]];
+    const points = [[20, 10], [20, 4],
+                    [-2, -7], [-20, -10],
+                    [-20, 10], [-16, 14], [16, 14]];
+    // const points = [[20, 10], [20, -10], [-20, -10], [-20, 10]];
 
     const up_vector = new Vector2D(0, -1);
     const normal_overrides = [null, up_vector,

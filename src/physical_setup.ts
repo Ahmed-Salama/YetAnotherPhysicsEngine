@@ -71,89 +71,41 @@ export default class PhysicalSetup extends GameElement {
   }
 
   private _updated_per_object(time_unit: number, object_id: number): PhysicalSetup {
-    const rec = (current_physical_setup: PhysicalSetup, iterations: number): PhysicalSetup => {
-      if (iterations == 0) {
-        // alert("Error");
-        return current_physical_setup;
-      }
-
-      const object = current_physical_setup.objects.get(object_id);
-
       // Collide object with all remaining objects in the setup
-      const all_objects_except_me = current_physical_setup.filter_objects(o => o.id != object.id).map(e => e.id);
+      const all_objects_except_me = this.filter_objects(o => o.id != object_id).map(e => e.id);
       const {
-            collided_objects,
+            collided_objects_ids,
             reduced_physical_setup: after_collision_physical_setup} = 
             all_objects_except_me.reduce(
-              ({collided_objects, reduced_physical_setup}, to_collide) => {
-                const updated_object = reduced_physical_setup.objects.get(object.id) as PhysicalObject;
-                const updated_to_collide = reduced_physical_setup.objects.get(to_collide) as PhysicalObject;
-                
+              ({collided_objects_ids, reduced_physical_setup}, other_object_id) => {
                 const {next_physical_setup,
                       collision} = reduced_physical_setup._collide_object_plus_delta_with_another(
-                                      updated_object,
-                                      updated_to_collide,
+                                      object_id,
+                                      other_object_id,
                                       time_unit);
 
                 return {
-                        collided_objects: collision.collided() ? collided_objects.push(updated_to_collide) : collided_objects, 
+                        collided_objects_ids: collision.collided() ? collided_objects_ids.push(other_object_id) : collided_objects_ids, 
                         reduced_physical_setup: next_physical_setup};
               },
-              { collided_objects: Immutable.List<PhysicalObject>(), 
-                reduced_physical_setup: current_physical_setup });
+              { collided_objects_ids: Immutable.List<number>(), 
+                reduced_physical_setup: this as PhysicalSetup });
 
-      const after_collision_object = after_collision_physical_setup.objects.get(object.id);
-      const next_state_after_collision_object = after_collision_object.updated_with_collisions(collided_objects) as PhysicalObject;
+      const after_collision_object = after_collision_physical_setup.objects.get(object_id);
+      const next_state_after_collision_object = after_collision_object.updated_with_collisions(collided_objects_ids.map(id => after_collision_physical_setup.objects.get(id)).toList()) as PhysicalObject;
 
-      const finished = collided_objects.size == 0;
-      const delta_scale = 1;
-
-      const final_delta = next_state_after_collision_object.calculate_delta(time_unit);
-      const final_delta_position = final_delta.position.multiply(delta_scale);
-      const final_delta_angle = final_delta.angle * delta_scale;
-
+      const delta = next_state_after_collision_object.calculate_delta(time_unit);
       const updated_object_with_delta = next_state_after_collision_object
-                                          .move(final_delta_position)
-                                          .rotate(final_delta_angle);
+                                          .move(delta.position)
+                                          .rotate(delta.angle);
 
       return after_collision_physical_setup.replace_element(updated_object_with_delta);
-    }
-
-    return rec(this, 1);
-
-    // const delta_scale = collided_objects.size > 0 ? 
-    //   after_collision_physical_setup._is_object_plus_delta_collision_free(next_state_after_collision_object, 
-    //                                                                 after_collision_delta_position, 
-    //                                                                 after_collision_delta_angle) :
-    //   1;
-    // const delta_scale = 1;
-
-    // if (delta_scale < 1) console.log(delta_scale);
-    // const final_delta_position = after_collision_delta_position.multiply(delta_scale);
-    // const final_delta_angle = after_collision_delta_angle * delta_scale;
-
-    // const updated_object_with_delta = next_state_after_collision_object
-    //                                     .move(final_delta_position)
-    //                                     .rotate(final_delta_angle);
-
-    // const final_physical_setup = after_collision_physical_setup.replace_element(updated_object_with_delta);
-    // return final_physical_setup;
   }
 
-  private _is_object_plus_delta_collision_free(object: PhysicalObject, delta_p: Vector2D, delta_a: number) {
-    const object_with_delta_p = object.move(delta_p);
-    const object_with_delta_a = object.rotate(delta_a);
+  public _collide_object_plus_delta_with_another(o_a_id: number, o_b_id: number, time_unit: number) {
+    const o_a = this.objects.get(o_a_id);
+    const o_b = this.objects.get(o_b_id);
 
-    const intersects = this
-      .filter_objects(o => o.id != object.id)
-      .some(other => 
-        object_with_delta_p.calculate_collision(other).collided() ||
-        object_with_delta_a.calculate_collision(other).collided());
-
-    return intersects ? 0 : 1;
-  }
-
-  public _collide_object_plus_delta_with_another(o_a: PhysicalObject, o_b: PhysicalObject, time_unit: number) {
     const canvas = document.getElementById("canvas") as HTMLCanvasElement;
     const ctx = canvas.getContext("2d");
 
@@ -179,11 +131,8 @@ export default class PhysicalSetup extends GameElement {
         const intersection = first_intersection;
         const intersection_point = intersection.intersection_point;
 
-        const elasticity =
-            (intersection.self_line.elasticity + intersection.other_line.elasticity) / 2;
+        const elasticity = Math.min(intersection.self_line.elasticity, intersection.other_line.elasticity);
     
-        // const old_intersection_point = intersection_point.subtract(o_a_updated.position).rotate(-o_a_updated.angle).rotate(o_a.angle).add_vector(o_a.position);
-        // const normal = intersection_point.to(old_intersection_point);
         const normal = intersection.other_line.normal;
         
         const r_ap = o_a_updated.center_of_mass
@@ -218,8 +167,7 @@ export default class PhysicalSetup extends GameElement {
         const intersection = first_intersection;
         const intersection_point = intersection.intersection_point;
 
-        const elasticity =
-            (intersection.self_line.elasticity + intersection.other_line.elasticity) / 2;
+        const elasticity = Math.min(intersection.self_line.elasticity, intersection.other_line.elasticity);
 
         const v_a1 = o_a_updated.velocity;
         const v_b1 = o_b.velocity;
@@ -306,7 +254,7 @@ export default class PhysicalSetup extends GameElement {
     }
 
     const multiplier = binary_search(0, 10, 5);
-    const amplifier = 2;
+    const amplifier = 1;
     const o_a_updated = o_a.copy<PhysicalObject>({ velocity: o_a.velocity.add_vector(contact_velocity.multiply(multiplier * amplifier) )});
 
     return this.replace_element(o_a_updated);

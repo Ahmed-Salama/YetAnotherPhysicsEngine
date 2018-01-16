@@ -9,6 +9,9 @@ import Vector2D from './vector2d';
 import {Collision, CollisionResult} from './collision'
 import {Intersection, Line} from './line'
 import Constants from './constants'
+import Utils from './utils';
+import Pipeline from './pipeline';
+import PipelineTransformer from './pipeline_transformer';
 
 export default class PhysicalSetup extends GameElement {
   public objects: Immutable.Map<number, PhysicalObject>;
@@ -57,7 +60,7 @@ export default class PhysicalSetup extends GameElement {
 
     const final_game_set = all_objects_except_ground.reduce(
       (reduced_physical_setup, object_id) =>
-        reduced_physical_setup._updated_per_object(time_unit, object_id),
+        reduced_physical_setup._resolve_collisions_per_object(time_unit, object_id),
       final_game_set_1 as PhysicalSetup
     ); 
     const end_time = performance.now();
@@ -70,7 +73,7 @@ export default class PhysicalSetup extends GameElement {
     return final_game_set.copy({ frame_calculations: current_frame_calculations}) as GameElement;
   }
 
-  private _updated_per_object(time_unit: number, object_id: number): PhysicalSetup {
+  private _resolve_collisions_per_object(time_unit: number, object_id: number): PhysicalSetup {
       // Collide object with all remaining objects in the setup
       const all_objects_except_me = this.filter_objects(o => o.id != object_id).map(e => e.id);
       const {
@@ -79,7 +82,7 @@ export default class PhysicalSetup extends GameElement {
             all_objects_except_me.reduce(
               ({collided_objects_ids, reduced_physical_setup}, other_object_id) => {
                 const {next_physical_setup,
-                      collision} = reduced_physical_setup._collide_object_plus_delta_with_another(
+                      collision} = reduced_physical_setup._collide_object_with_another(
                                       object_id,
                                       other_object_id,
                                       time_unit);
@@ -102,12 +105,9 @@ export default class PhysicalSetup extends GameElement {
       return after_collision_physical_setup.replace_element(updated_object_with_delta);
   }
 
-  public _collide_object_plus_delta_with_another(o_a_id: number, o_b_id: number, time_unit: number) {
+  private _calculate_collision_after_time_unit(o_a_id: number, o_b_id: number, time_unit: number): Collision {
     const o_a = this.objects.get(o_a_id);
     const o_b = this.objects.get(o_b_id);
-
-    const canvas = document.getElementById("canvas") as HTMLCanvasElement;
-    const ctx = canvas.getContext("2d");
 
     const o_a_delta = o_a.calculate_delta(time_unit);
     const o_b_delta = o_b.calculate_delta(time_unit);
@@ -115,121 +115,158 @@ export default class PhysicalSetup extends GameElement {
     const o_a_updated = o_a.move(o_a_delta.position).rotate(o_a_delta.angle);
     const o_b_updated = o_b.move(o_b_delta.position).rotate(o_b_delta.angle);
 
-    const collision = o_a_updated.calculate_collision(o_b_updated);
+    return o_a_updated.calculate_collision(o_b_updated);
+  }
+
+  public _collide_object_with_another(o_a_id: number, o_b_id: number, time_unit: number) {
+    const collision = this._calculate_collision_after_time_unit(o_a_id, o_b_id, time_unit);
     if (!collision.collided()) {
       return {
         next_physical_setup: this as PhysicalSetup,
         collision: collision
       };
     }
+    
+    const o_b = this.objects.get(o_b_id);
 
     // Impulse-based collision handling.
     // Reference: https://www.myphysicslab.com/engine2D/collision-en.html#collision_physics
-    const first_intersection = collision.intersections.first();
-
-    if (o_b.is_ground) {
-        const intersection = first_intersection;
-        const intersection_point = intersection.intersection_point;
-
-        const elasticity = Math.min(intersection.self_line.elasticity, intersection.other_line.elasticity);
-    
-        const normal = intersection.other_line.normal;
-        
-        const r_ap = o_a_updated.center_of_mass
-                      .rotate(o_a_updated.angle)
-                      .add_vector(o_a_updated.position)
-                      .to(intersection_point);
-
-        const v_a1 = o_a_updated.velocity;
-        const w_a1 = o_a_updated.angular_velocity;
-
-        const v_ap1 = v_a1.add_vector(r_ap.crossW_inverted(w_a1));
-
-        const m_a = o_a_updated.mass;
-        const i_a = o_a_updated.moment_of_inertia;
-
-        const impulse = - (1 + elasticity) * v_ap1.dot(normal) /
-                          (1.0/m_a + Math.pow(r_ap.cross(normal), 2)/i_a);
-
-        const d_v_a = normal.multiply(impulse / m_a);
-        const d_w_a = r_ap.cross(normal.multiply(impulse)) / i_a;
-        const updated_self = o_a.copy<PhysicalObject>({
-            velocity: o_a.velocity.add_vector(d_v_a),
-            angular_velocity: o_a.angular_velocity + d_w_a
-        });
-      const after_impulse_physical_setup = this.replace_element(updated_self);
-      const after_contact_physical_setup = after_impulse_physical_setup.binary_search_ground_contact_velocity(o_a.id, normal, o_b.id, time_unit);
-      return {
-        next_physical_setup: after_contact_physical_setup,
-        collision: collision
-      };
-    } else {
-        const intersection = first_intersection;
-        const intersection_point = intersection.intersection_point;
-
-        const elasticity = Math.min(intersection.self_line.elasticity, intersection.other_line.elasticity);
-
-        const v_a1 = o_a_updated.velocity;
-        const v_b1 = o_b.velocity;
-
-        const c_a = o_a.position;
-        const r_ap = c_a.to(intersection_point);
-
-        const c_b = o_b.position;
-        const r_bp = c_b.to(intersection_point);
-
-        const normal = intersection.other_line.normal;
-
-        const w_a1 = o_a_updated.angular_velocity;
-        const w_b1 = o_b.angular_velocity;
-
-        const v_ap1 = v_a1.add_vector(r_ap.crossW_inverted(w_a1));
-        const v_bp1 = v_b1.add_vector(r_bp.crossW_inverted(w_b1));
-
-        const v_ab1 = v_ap1.subtract(v_bp1);
-
-        const m_a = o_a_updated.mass;
-        const m_b = o_b.mass;
-
-        const i_a = o_a_updated.moment_of_inertia;
-        const i_b = o_b.moment_of_inertia;
-
-        const impulse = (1 + elasticity) * v_ab1.dot(normal) /
-                        (1.0/m_a + 1.0/m_b + Math.pow(r_ap.cross(normal), 2)/i_a + Math.pow(r_bp.cross(normal), 2)/i_b);
-
-        const d_v_a = normal.multiply(-impulse / m_a)
-        const d_v_b = normal.multiply(impulse / m_b)
-
-        const d_w_a = r_ap.cross(normal.multiply(-impulse)) / i_a;
-        const d_w_b = r_bp.cross(normal.multiply(impulse)) / i_b;
-
-
-      const updated_self = o_a.copy<PhysicalObject>({
-          velocity: o_a.velocity.add_vector(d_v_a),
-          angular_velocity: o_a.angular_velocity + d_w_a
-      });
-      const updated_other = o_b.copy<PhysicalObject>({
-          velocity: o_b.velocity.add_vector(d_v_b),
-          angular_velocity: o_b.angular_velocity + d_w_b
-      });
-
-      const after_impulse_physical_setup = this.replace_element(updated_self).replace_element(updated_other);
-      const after_contact_physical_setup = after_impulse_physical_setup.binary_search_contact_velocity(o_a.id, o_b.id, time_unit);
-
-      return {
-        next_physical_setup:after_contact_physical_setup,
-        collision: collision
-      };
+    const construct_collision_pipeline = () => {
+      if (o_b.is_ground) {
+        return new Pipeline<PhysicalSetup>(Immutable.List([
+          new PipelineTransformer(this._apply_ground_impulse_velocity, [o_a_id, collision, time_unit]),
+          new PipelineTransformer(this._apply_ground_contact_velocity, [o_a_id, o_b_id, collision, time_unit]),
+        ]));
+      } else {
+        return new Pipeline<PhysicalSetup>(Immutable.List([
+          new PipelineTransformer(this._apply_impulse_velocity, [o_a_id, o_b_id, collision, time_unit]),
+          new PipelineTransformer(this._apply_contact_velocity, [o_a_id, o_b_id, time_unit]),
+        ]));
+      }
     }
+
+    const final_physical_setup = construct_collision_pipeline().execute(this) as PhysicalSetup;
+    return {
+      next_physical_setup: final_physical_setup,
+      collision: collision
+    };
   }
 
-  public binary_search_ground_contact_velocity(o_a_id: number, normal: Vector2D, ground_id: number, time_unit: number) {
+  public _apply_impulse_velocity(o_a_id: number, o_b_id: number, collision: Collision, time_unit: number): PhysicalSetup {
+    const o_a = this.objects.get(o_a_id);
+    const o_b = this.objects.get(o_b_id);
+
+    const o_a_delta = o_a.calculate_delta(time_unit);
+    const o_b_delta = o_b.calculate_delta(time_unit);
+
+    const o_a_updated = o_a.move(o_a_delta.position).rotate(o_a_delta.angle);
+    const o_b_updated = o_b.move(o_b_delta.position).rotate(o_b_delta.angle);
+    
+    const intersection = collision.intersections.first();
+    const intersection_point = intersection.intersection_point;
+
+    const elasticity = Math.min(intersection.self_line.elasticity, intersection.other_line.elasticity);
+
+    const v_a1 = o_a_updated.velocity;
+    const v_b1 = o_b.velocity;
+
+    const c_a = o_a.position;
+    const r_ap = c_a.to(intersection_point);
+
+    const c_b = o_b.position;
+    const r_bp = c_b.to(intersection_point);
+
+    const normal = intersection.other_line.normal;
+
+    const w_a1 = o_a_updated.angular_velocity;
+    const w_b1 = o_b.angular_velocity;
+
+    const v_ap1 = v_a1.add_vector(r_ap.crossW_inverted(w_a1));
+    const v_bp1 = v_b1.add_vector(r_bp.crossW_inverted(w_b1));
+
+    const v_ab1 = v_ap1.subtract(v_bp1);
+
+    const m_a = o_a_updated.mass;
+    const m_b = o_b.mass;
+
+    const i_a = o_a_updated.moment_of_inertia;
+    const i_b = o_b.moment_of_inertia;
+
+    const impulse = (1 + elasticity) * v_ab1.dot(normal) /
+                    (1.0/m_a + 1.0/m_b + Math.pow(r_ap.cross(normal), 2)/i_a + Math.pow(r_bp.cross(normal), 2)/i_b);
+
+    const d_v_a = normal.multiply(-impulse / m_a)
+    const d_v_b = normal.multiply(impulse / m_b)
+
+    const d_w_a = r_ap.cross(normal.multiply(-impulse)) / i_a;
+    const d_w_b = r_bp.cross(normal.multiply(impulse)) / i_b;
+
+    const o_a_updated_with_impulse_velocity = o_a.copy<PhysicalObject>({
+        velocity: o_a.velocity.add_vector(d_v_a),
+        angular_velocity: o_a.angular_velocity + d_w_a
+    });
+    const o_b_updated_with_impulse_velocity = o_b.copy<PhysicalObject>({
+        velocity: o_b.velocity.add_vector(d_v_b),
+        angular_velocity: o_b.angular_velocity + d_w_b
+    });
+
+    const after_impulse_physical_setup = 
+      this
+        .replace_element(o_a_updated_with_impulse_velocity)
+        .replace_element(o_b_updated_with_impulse_velocity);
+
+    return after_impulse_physical_setup;
+  }
+
+  public _apply_ground_impulse_velocity(o_a_id: number, collision: Collision, time_unit: number): PhysicalSetup {
+    const o_a = this.objects.get(o_a_id);
+    const o_a_delta = o_a.calculate_delta(time_unit);
+    const o_a_updated = o_a.move(o_a_delta.position).rotate(o_a_delta.angle);
+
+    const intersection = collision.intersections.first();
+    const intersection_point = intersection.intersection_point;
+
+    const elasticity = Math.min(intersection.self_line.elasticity, intersection.other_line.elasticity);
+
+    const normal = intersection.other_line.normal;
+    
+    const r_ap = o_a_updated.center_of_mass
+                  .rotate(o_a_updated.angle)
+                  .add_vector(o_a_updated.position)
+                  .to(intersection_point);
+
+    const v_a1 = o_a_updated.velocity;
+    const w_a1 = o_a_updated.angular_velocity;
+
+    const v_ap1 = v_a1.add_vector(r_ap.crossW_inverted(w_a1));
+
+    const m_a = o_a_updated.mass;
+    const i_a = o_a_updated.moment_of_inertia;
+
+    const impulse = - (1 + elasticity) * v_ap1.dot(normal) / (1.0/m_a + Math.pow(r_ap.cross(normal), 2)/i_a);
+
+    const impulse_velocity = normal.multiply(impulse / m_a);
+    const impulse_angular_velocity = r_ap.cross(normal.multiply(impulse)) / i_a;
+
+    const o_a_updated_with_impulse_velocity = o_a.copy<PhysicalObject>({
+        velocity: o_a.velocity.add_vector(impulse_velocity),
+        angular_velocity: o_a.angular_velocity + impulse_angular_velocity
+    });
+
+    const after_impulse_physical_setup = this.replace_element(o_a_updated_with_impulse_velocity);
+    return after_impulse_physical_setup;
+  }
+
+  public _apply_ground_contact_velocity(o_a_id: number, ground_id: number, collision: Collision, time_unit: number) {
     const o_a = this.objects.get(o_a_id);
     const ground = this.objects.get(ground_id);
+
     const m_a = o_a.mass;
     const c_a = o_a.position;
 
-    const contact_velocity = normal;
+    const intersection = collision.intersections.first();
+    const intersection_normal = intersection.other_line.normal;
+    const contact_velocity = intersection_normal;
 
     const can = (v: number) => {
       const o_a_v = o_a.velocity.add_vector(contact_velocity.multiply(v));
@@ -244,23 +281,14 @@ export default class PhysicalSetup extends GameElement {
       else return true;
     }
 
-    const binary_search = (lo: number, hi: number, iterations: number): number => {
-      if (iterations == 0) return hi;
-
-      const md = (lo + hi) / 2;
-
-      if (can(md)) return binary_search(lo, md, iterations - 1);
-      else return binary_search(md, hi, iterations - 1);
-    }
-
-    const multiplier = binary_search(0, 10, 5);
+    const multiplier = Utils.binary_search(0, 10, 5, can);
     const amplifier = 1;
     const o_a_updated = o_a.copy<PhysicalObject>({ velocity: o_a.velocity.add_vector(contact_velocity.multiply(multiplier * amplifier) )});
 
     return this.replace_element(o_a_updated);
   }
 
-  public binary_search_contact_velocity(o_a_id: number, o_b_id: number, time_unit: number) {
+  public _apply_contact_velocity(o_a_id: number, o_b_id: number, time_unit: number) {
     const o_a = this.objects.get(o_a_id);
     const o_b = this.objects.get(o_b_id);
 
@@ -272,10 +300,8 @@ export default class PhysicalSetup extends GameElement {
 
     const contact_normal = c_a.to(c_b).normalize();
 
-    const contact_velocity_a = contact_normal.reverse()
-                                 .multiply(m_b / (m_a + m_b));
-    const contact_velocity_b = contact_normal
-                                 .multiply(m_a / (m_a + m_b));
+    const contact_velocity_a = contact_normal.reverse().multiply(m_b / (m_a + m_b));
+    const contact_velocity_b = contact_normal.multiply(m_a / (m_a + m_b));
 
     const can = (v: number) => {
       const o_a_v = o_a.velocity.add_vector(contact_velocity_a.multiply(v));
@@ -295,16 +321,7 @@ export default class PhysicalSetup extends GameElement {
       else return true;
     }
 
-    const binary_search = (lo: number, hi: number, iterations: number): number => {
-      if (iterations == 0) return hi;
-
-      const md = (lo + hi) / 2;
-
-      if (can(md)) return binary_search(lo, md, iterations - 1);
-      else return binary_search(md, hi, iterations - 1);
-    }
-
-    const multiplier = binary_search(0, 10, 5);
+    const multiplier = Utils.binary_search(0, 10, 5, can);
     const amplifier = 2;
     const o_a_updated = o_a.copy<PhysicalObject>({ velocity: o_a.velocity.add_vector(contact_velocity_a.multiply(multiplier * amplifier) )});
     const o_b_updated = o_b.copy<PhysicalObject>({ velocity: o_b.velocity.add_vector(contact_velocity_b.multiply(multiplier * amplifier) )});

@@ -6,7 +6,7 @@ export default class Pipeline<T> {
     constructor(transformers: Immutable.List<PipelineTransformer<T>>) {
         this.transformers = transformers;
     }
-    public execute(initia_state: T): T {
-        return this.transformers.reduce((current_state, transformer) => transformer.method.apply(current_state, transformer.parameters), initia_state);
+    public execute(initial_state: T): T {
+        return this.transformers.reduce((current_state, transformer) => transformer.method.apply(current_state, transformer.parameters), initial_state);
     }
 }

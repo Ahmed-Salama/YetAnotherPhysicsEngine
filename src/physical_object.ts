@@ -101,15 +101,9 @@ export default class PhysicalObject extends GameElement {
       0.74;
 
     return this.copy({
-      // position:
-      //   this.position
-      //     .add_vector(this.velocity.multiply(time_fraction)),
       velocity:
         new_velocity
           .add_vector(velocity_air_drag_vector),
-      // angle:
-      //   this.angle +
-      //   this.angular_velocity * time_fraction,
       angular_velocity:
         this.angular_velocity +
         angular_velocity_air_drag * time_fraction
@@ -122,13 +116,13 @@ export default class PhysicalObject extends GameElement {
 
   protected _camera_translate(vector: Vector2D, camera_position: Vector2D): Vector2D {
     const after_position_and_rotation = this._translate(vector);
-    // const final_translation = after_position_and_rotation.add_vector(
-    //       new Vector2D(
-    //         - camera_position.x +
-    //         Constants.canvas_size / (2 * Constants.drawing_scale),
-    //         0));
+    const final_translation = after_position_and_rotation.add_vector(
+          new Vector2D(
+            - camera_position.x +
+            Constants.canvas_size / (2 * Constants.drawing_scale),
+            0));
 
-    return after_position_and_rotation;
+    return final_translation;
   }
 
   public _stroke_line(start: Vector2D, end: Vector2D, color: string,
@@ -163,17 +157,17 @@ export default class PhysicalObject extends GameElement {
     
     const self = this;
     this.lines.forEach(line => {
-        self._stroke_line(line.start_position, line.end_position, "black", ctx, camera_position);
+      self._stroke_line(line.start_position, line.end_position, "black", ctx, camera_position);
 
-        // normal vector calculations
-        const start_to_end_vector = line.start_position.to(line.end_position);
-        const mid_point = start_to_end_vector.normalize().multiply(
-            start_to_end_vector.length() / 2);
-        const normal_start_position = line.start_position.add_vector(mid_point);
-        const normal_end_position = line.start_position
-                                        .add_vector(mid_point).add_vector(line.normal);
-        self._stroke_line(normal_start_position, normal_end_position, "black",
-                          ctx, camera_position);
+      // normal vector calculations
+      const start_to_end_vector = line.start_position.to(line.end_position);
+      const mid_point = start_to_end_vector.normalize().multiply(
+          start_to_end_vector.length() / 2);
+      const normal_start_position = line.start_position.add_vector(mid_point);
+      const normal_end_position = line.start_position
+                                      .add_vector(mid_point).add_vector(line.normal);
+      self._stroke_line(normal_start_position, normal_end_position, "black",
+                        ctx, camera_position);
     });
 
     if (!this.is_ground) {
@@ -184,11 +178,10 @@ export default class PhysicalObject extends GameElement {
       ctx.save();
       ctx.strokeStyle = color;
       ctx.beginPath();
-      const camera = Vector2D.empty;
-      // const camera = new Vector2D(
-      //                 - camera_position.x +
-      //                 Constants.canvas_size / (2 * Constants.drawing_scale),
-      //                 0);
+      const camera = new Vector2D(
+                      - camera_position.x +
+                      Constants.canvas_size / (2 * Constants.drawing_scale),
+                      0);
       const to_draw_start_position = self.position.add_vector(start).add_vector(camera);
       const to_draw_end_position = self.position.add_vector(end).add_vector(camera);
       ctx.moveTo(Constants.drawing_scale * to_draw_start_position.x,

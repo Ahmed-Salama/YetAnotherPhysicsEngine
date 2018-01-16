@@ -18,7 +18,7 @@ export default class Entity {
   }
 
   public equals(e: Entity) {
-      return this.id == e.id;
+    return this.id == e.id;
   }
 
   protected initialize() {

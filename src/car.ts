@@ -57,7 +57,6 @@ export default class Car extends PhysicalObject {
     const points = [[20, 10], [20, 4],
                     [-2, -7], [-20, -10],
                     [-20, 10], [-16, 14], [16, 14]];
-    // const points = [[20, 10], [20, -10], [-20, -10], [-20, 10]];
 
     const up_vector = new Vector2D(0, -1);
     const normal_overrides = [null, up_vector,
@@ -77,7 +76,7 @@ export default class Car extends PhysicalObject {
                                             new Vector2D(p1[0] / f, p1[1] / f),
                                             new Vector2D(p2[0] / f, p2[1] / f),
                                             elasticity[i],
-                                            null));
+                                            normal_overrides[i]));
     }
 
     this.forward = new Vector2D(-20 / f, 0);
@@ -87,59 +86,59 @@ export default class Car extends PhysicalObject {
 
   protected _mirrorX(): Car {
     return this.copy({
-        lines: this.lines.map(line => line.flipX()).toList(),
-        forward: this.forward.flipX(),
-        jumper: this.jumper.flipX(),
-        tires: this.tires.map(tire => tire.flipX()).toList(),
-        center_of_mass: this.center_of_mass.flipX(),
-        direction_x: this.direction_x * -1
+      lines: this.lines.map(line => line.flipX()).toList(),
+      forward: this.forward.flipX(),
+      jumper: this.jumper.flipX(),
+      tires: this.tires.map(tire => tire.flipX()).toList(),
+      center_of_mass: this.center_of_mass.flipX(),
+      direction_x: this.direction_x * -1
     });
   }
 
   protected _mirrorY(): Car {
     return this.copy({
-        lines: this.lines.map(line => line.flipY()).toList(),
-        forward: this.forward.flipY(),
-        jumper: this.jumper.flipY(),
-        tires: this.tires.map(tire => tire.flipY()).toList(),
-        center_of_mass: this.center_of_mass.flipY(),
-        direction_y: this.direction_y * -1
+      lines: this.lines.map(line => line.flipY()).toList(),
+      forward: this.forward.flipY(),
+      jumper: this.jumper.flipY(),
+      tires: this.tires.map(tire => tire.flipY()).toList(),
+      center_of_mass: this.center_of_mass.flipY(),
+      direction_y: this.direction_y * -1
     });
   }
 
   private _apply_flip_x_input(): Car {
     const after_flip_x_input: Car = Constants.key_pressed.get("S") ?
-        (this.flip_x_state == "idle" ?
-            this.copy({ flip_x_state: "active" }) :
-            this) :
-        (this.flip_x_state == "idle" ?
-            this:
-            this.copy({ flip_x_state: "idle" }));
+      (this.flip_x_state == "idle" ?
+        this.copy({ flip_x_state: "active" }) :
+        this) :
+      (this.flip_x_state == "idle" ?
+        this:
+        this.copy({ flip_x_state: "idle" }));
 
     const is_flipping_x = this.flip_x_state == "idle" &&
-                           after_flip_x_input.flip_x_state == "active";
+                          after_flip_x_input.flip_x_state == "active";
     return is_flipping_x ? after_flip_x_input._mirrorX() : after_flip_x_input;
   }
 
   private _apply_flip_y_input(): Car {
     const after_flip_y_input: Car = Constants.key_pressed.get("D") ?
-        (this.flip_y_state == "idle" ?
-            this.copy({ flip_y_state: "active" }) :
-            this) :
-        (this.flip_y_state == "idle" ?
-            this :
-            this.copy({ flip_y_state: "idle" }));
+      (this.flip_y_state == "idle" ?
+        this.copy({ flip_y_state: "active" }) :
+        this) :
+      (this.flip_y_state == "idle" ?
+        this :
+        this.copy({ flip_y_state: "idle" }));
 
     const is_flipping_y = this.flip_y_state == "idle" &&
-                           after_flip_y_input.flip_y_state == "active";
+                          after_flip_y_input.flip_y_state == "active";
     return is_flipping_y ? after_flip_y_input._mirrorY() : after_flip_y_input;
   }
 
   private _apply_ground_movement_input(time_unit: number): Car {
     const movement_added_velocity = 
-        (this.touching_ground ? 1 : 0) *
-        (Constants.key_pressed.get("down") * -1 +
-        Constants.key_pressed.get("up"));
+      (this.touching_ground ? 1 : 0) *
+      (Constants.key_pressed.get("down") * -1 +
+      Constants.key_pressed.get("up"));
 
     const movement_vectory = 
       this.forward
@@ -150,7 +149,7 @@ export default class Car extends PhysicalObject {
         .multiply(Car.NITRO_STRENGTH);
 
     return this.copy({
-        velocity: this.velocity.add_vector(movement_vectory.multiply(time_unit * 1.0 / 1000))
+      velocity: this.velocity.add_vector(movement_vectory.multiply(time_unit * 1.0 / 1000))
     });
   }
 
@@ -170,7 +169,7 @@ export default class Car extends PhysicalObject {
         .multiply(Car.NITRO_STRENGTH);
 
     return after_nitro_input.copy({
-        velocity: after_nitro_input.velocity.add_vector(nitro_vector.multiply(time_unit * 1.0 / 1000))
+      velocity: after_nitro_input.velocity.add_vector(nitro_vector.multiply(time_unit * 1.0 / 1000))
     });
   }
 
@@ -197,24 +196,24 @@ export default class Car extends PhysicalObject {
 
   private _apply_jump_input(time_unit: number): Car {
     const after_jump_input: Car = Constants.key_pressed.get("A") ?
-        (this.jump_state == "station" && this.jump_count > 0 ?
-            this.copy({
-              flying_state: "flying",
-              jump_state: "jumping",
-              jump_timer: Constants.jump_timer_duration,
-              jump_count: this.jump_count - 1
-            }) :
-            this.copy({
-              jump_timer: Math.max(0, this.jump_timer - 1)
-            })) :
-        (this.jump_state == "station" ?
-            this.copy({
-              jump_timer: Math.max(0, this.jump_timer - 1)
-            }) :
-            this.copy({
-              jump_state: "station",
-              jump_timer: Math.max(0, this.jump_timer - 1)
-            }));
+      (this.jump_state == "station" && this.jump_count > 0 ?
+        this.copy({
+          flying_state: "flying",
+          jump_state: "jumping",
+          jump_timer: Constants.jump_timer_duration,
+          jump_count: this.jump_count - 1
+        }) :
+        this.copy({
+          jump_timer: Math.max(0, this.jump_timer - 1)
+        })) :
+      (this.jump_state == "station" ?
+        this.copy({
+          jump_timer: Math.max(0, this.jump_timer - 1)
+        }) :
+        this.copy({
+          jump_state: "station",
+          jump_timer: Math.max(0, this.jump_timer - 1)
+        }));
 
     const car_jumping_index = after_jump_input.jump_timer;
     const car_jumping = after_jump_input.jump_timer > 0;
@@ -230,15 +229,15 @@ export default class Car extends PhysicalObject {
         .multiply(1.0 / Math.pow(2, Constants.jump_timer_duration - car_jumping_index + 1));
 
     return after_jump_input.copy({
-        velocity: after_jump_input.velocity.add_vector(jump_vector),
+      velocity: after_jump_input.velocity.add_vector(jump_vector),
     });
   }
 
   private _apply_rotation_input(time_unit: number): Car {
     const angular_force = 
-        (this.touching_ground ? 0 : 1) *
-        (Constants.key_pressed.get("left") * -1 +
-        Constants.key_pressed.get("right"));
+      (this.touching_ground ? 0 : 1) *
+      (Constants.key_pressed.get("left") * -1 +
+      Constants.key_pressed.get("right"));
 
     const angular_velocity_input = 
       Car.ROTATION_STRENGTH *
@@ -246,7 +245,7 @@ export default class Car extends PhysicalObject {
       time_unit * 1.0 / 1000;
 
     return this.copy({
-        angular_velocity: this.angular_velocity + angular_velocity_input
+      angular_velocity: this.angular_velocity + angular_velocity_input
     });
   }
 
@@ -278,7 +277,7 @@ export default class Car extends PhysicalObject {
       ctx.strokeStyle = "red";
       super.draw(ctx, camera_position);
 
-      // this._draw_circle(this.forward, 1, 6, "violet", ctx, camera_position);
+      this._draw_circle(this.forward, 1, 6, "violet", ctx, camera_position);
       this._draw_circle(this.jumper, 1, 6, this.jump_state == "station" ? "yellow" : "orange", ctx, camera_position);
 
       this.tires.forEach(tire => self._draw_circle(tire, 1, 2, "red", ctx, camera_position));

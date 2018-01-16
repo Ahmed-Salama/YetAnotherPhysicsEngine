@@ -23,29 +23,7 @@ export default class Ball extends PhysicalObject {
 
   protected _build_lines() {
     super._build_lines();
-    const f = 3;
-    // const points = [[20, 10], [20, -10], [-20, -10], [-20, 10]];
-
-    // const up_vector = new Vector2D(0, -1);
-    // const normal_overrides = [null, up_vector,
-    //                           up_vector, null,
-    //                           null, null, null];
-
-    // const elasticity = [Constants.general_elasticity, Constants.general_elasticity,
-    //                     Constants.general_elasticity, Constants.general_elasticity,
-    //                     Constants.tire_elasticity, Constants.tire_elasticity,
-    //                     Constants.tire_elasticity];
-
-    // for (let i = 0; i < points.length; i++) {
-    //   const j = (i + 1) % points.length;
-    //   const p1 = points[i];
-    //   const p2 = points[j];
-    //   this.lines = this.lines.push(new Line(true,
-    //                                         new Vector2D(p1[0] / f, p1[1] / f),
-    //                                         new Vector2D(p2[0] / f, p2[1] / f),
-    //                                         elasticity[i],
-    //                                         null));
-    // }
+    
     const samples = 16;
     for (var s = 0; s < samples; s++) {
       const angle1 = -s * 2 * Math.PI / samples;

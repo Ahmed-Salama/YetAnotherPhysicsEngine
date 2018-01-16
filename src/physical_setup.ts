@@ -1,14 +1,10 @@
 import Ball from './ball'
 import Camera from './camera'
 import Car from './car'
-import Entity from './entity'
 import GameElement from './game_element'
 import Ground from './ground'
 import PhysicalObject from './physical_object'
-import Vector2D from './vector2d';
-import {Collision, CollisionResult} from './collision'
-import {Intersection, Line} from './line'
-import Constants from './constants'
+import {Collision} from './collision'
 import Utils from './utils';
 import Pipeline from './pipeline';
 import PipelineTransformer from './pipeline_transformer';
@@ -154,10 +150,8 @@ export default class PhysicalSetup extends GameElement {
     const o_b = this.objects.get(o_b_id);
 
     const o_a_delta = o_a.calculate_delta(time_unit);
-    const o_b_delta = o_b.calculate_delta(time_unit);
 
     const o_a_translated = o_a.move(o_a_delta.position).rotate(o_a_delta.angle);
-    const o_b_translated = o_b.move(o_b_delta.position).rotate(o_b_delta.angle);
     
     const intersection = collision.intersections.first();
     const intersection_point = intersection.intersection_point;
@@ -257,9 +251,6 @@ export default class PhysicalSetup extends GameElement {
   public _apply_ground_contact_velocity(o_a_id: number, ground_id: number, collision: Collision, time_unit: number) {
     const o_a = this.objects.get(o_a_id);
     const ground = this.objects.get(ground_id);
-
-    const m_a = o_a.mass;
-    const c_a = o_a.position;
 
     const intersection = collision.intersections.first();
     const intersection_normal = intersection.other_line.normal;

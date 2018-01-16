@@ -1,9 +1,7 @@
 import Constants from './constants'
-import PhysicalSetup from './physical_setup'
 import Vector2D from './vector2d'
 import {Line} from './line'
 import PhysicalObject from './physical_object';
-import GameElement from './game_element';
 
 export default class Ball extends PhysicalObject {
   public radius: number;

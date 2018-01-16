@@ -126,7 +126,7 @@ export default class PhysicalSetup extends GameElement {
         collision: collision
       };
     }
-    
+
     const o_b = this.objects.get(o_b_id);
 
     // Impulse-based collision handling.
@@ -170,10 +170,10 @@ export default class PhysicalSetup extends GameElement {
     const v_a1 = o_a_updated.velocity;
     const v_b1 = o_b.velocity;
 
-    const c_a = o_a.position;
+    const c_a = o_a.center_of_mass.rotate(o_a.angle).add_vector(o_a.position);
     const r_ap = c_a.to(intersection_point);
 
-    const c_b = o_b.position;
+    const c_b = o_b.center_of_mass.rotate(o_b.angle).add_vector(o_b.position);
     const r_bp = c_b.to(intersection_point);
 
     const normal = intersection.other_line.normal;
@@ -195,19 +195,19 @@ export default class PhysicalSetup extends GameElement {
     const impulse = (1 + elasticity) * v_ab1.dot(normal) /
                     (1.0/m_a + 1.0/m_b + Math.pow(r_ap.cross(normal), 2)/i_a + Math.pow(r_bp.cross(normal), 2)/i_b);
 
-    const d_v_a = normal.multiply(-impulse / m_a)
-    const d_v_b = normal.multiply(impulse / m_b)
+    const a_impulse_velocity = normal.multiply(-impulse / m_a)
+    const b_impulse_velocity = normal.multiply(impulse / m_b)
 
-    const d_w_a = r_ap.cross(normal.multiply(-impulse)) / i_a;
-    const d_w_b = r_bp.cross(normal.multiply(impulse)) / i_b;
+    const a_impulse_angular_velocity = r_ap.cross(normal.multiply(-impulse)) / i_a;
+    const b_impulse_angular_velocity = r_bp.cross(normal.multiply(impulse)) / i_b;
 
     const o_a_updated_with_impulse_velocity = o_a.copy<PhysicalObject>({
-        velocity: o_a.velocity.add_vector(d_v_a),
-        angular_velocity: o_a.angular_velocity + d_w_a
+        velocity: o_a.velocity.add_vector(a_impulse_velocity),
+        angular_velocity: o_a.angular_velocity + a_impulse_angular_velocity
     });
     const o_b_updated_with_impulse_velocity = o_b.copy<PhysicalObject>({
-        velocity: o_b.velocity.add_vector(d_v_b),
-        angular_velocity: o_b.angular_velocity + d_w_b
+        velocity: o_b.velocity.add_vector(b_impulse_velocity),
+        angular_velocity: o_b.angular_velocity + b_impulse_angular_velocity
     });
 
     const after_impulse_physical_setup = 
@@ -221,7 +221,7 @@ export default class PhysicalSetup extends GameElement {
   public _apply_ground_impulse_velocity(o_a_id: number, collision: Collision, time_unit: number): PhysicalSetup {
     const o_a = this.objects.get(o_a_id);
     const o_a_delta = o_a.calculate_delta(time_unit);
-    const o_a_updated = o_a.move(o_a_delta.position).rotate(o_a_delta.angle);
+    const o_a_translated = o_a.move(o_a_delta.position).rotate(o_a_delta.angle);
 
     const intersection = collision.intersections.first();
     const intersection_point = intersection.intersection_point;
@@ -230,18 +230,18 @@ export default class PhysicalSetup extends GameElement {
 
     const normal = intersection.other_line.normal;
     
-    const r_ap = o_a_updated.center_of_mass
-                  .rotate(o_a_updated.angle)
-                  .add_vector(o_a_updated.position)
+    const r_ap = o_a_translated.center_of_mass
+                  .rotate(o_a_translated.angle)
+                  .add_vector(o_a_translated.position)
                   .to(intersection_point);
 
-    const v_a1 = o_a_updated.velocity;
-    const w_a1 = o_a_updated.angular_velocity;
+    const v_a1 = o_a_translated.velocity;
+    const w_a1 = o_a_translated.angular_velocity;
 
     const v_ap1 = v_a1.add_vector(r_ap.crossW_inverted(w_a1));
 
-    const m_a = o_a_updated.mass;
-    const i_a = o_a_updated.moment_of_inertia;
+    const m_a = o_a_translated.mass;
+    const i_a = o_a_translated.moment_of_inertia;
 
     const impulse = - (1 + elasticity) * v_ap1.dot(normal) / (1.0/m_a + Math.pow(r_ap.cross(normal), 2)/i_a);
 

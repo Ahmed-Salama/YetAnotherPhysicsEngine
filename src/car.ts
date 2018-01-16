@@ -4,6 +4,7 @@ import Vector2D from './vector2d'
 import PhysicalObject from './physical_object';
 import Pipeline from './pipeline';
 import PipelineTransformer from './pipeline_transformer';
+import Ground from './ground';
 
 export default class Car extends PhysicalObject {
   public static readonly NITRO_STRENGTH = 20;
@@ -43,7 +44,6 @@ export default class Car extends PhysicalObject {
     this.flip_y_state = "idle";
     this.direction_x = 1;
     this.direction_y = 1;
-    this.name = "car";
     this.touching_ground = false;
   }
 
@@ -180,7 +180,7 @@ export default class Car extends PhysicalObject {
   }
 
   private _apply_jump_reset(other_objects: Immutable.List<PhysicalObject>): PhysicalObject {
-    if (this._are_tires_touching_ground(other_objects.filter(o => o.is_ground).toList())) {
+    if (this._are_tires_touching_ground(other_objects.filter(o => o instanceof Ground).toList())) {
       if (this.jump_timer > 0) {
         return this.copy({ touching_ground: true });
       } else {

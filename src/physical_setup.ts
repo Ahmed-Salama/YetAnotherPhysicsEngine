@@ -126,7 +126,7 @@ export default class PhysicalSetup extends GameElement {
     // Reference: https://www.myphysicslab.com/engine2D/collision-en.html#collision_physics
     const construct_collision_pipeline = () => {
       const o_b = this.objects.get(o_b_id);
-      if (o_b.is_ground) {
+      if (o_b instanceof Ground) {
         return new Pipeline<PhysicalSetup>(Immutable.List([
           new PipelineTransformer(this._apply_ground_impulse_velocity, [o_a_id, collision, time_unit]),
           new PipelineTransformer(this._apply_ground_contact_velocity, [o_a_id, o_b_id, collision, time_unit]),
@@ -333,17 +333,16 @@ export default class PhysicalSetup extends GameElement {
 
   public filter_objects(predicate: (_: PhysicalObject) => boolean): Immutable.List<PhysicalObject> {
     return this.objects
-            .entrySeq()
-            .filter(([k, v]) => predicate(v))
-            .map(([k, v]) => v)
-            .toList();
+               .entrySeq()
+               .filter(([k, v]) => predicate(v))
+               .map(([k, v]) => v)
+               .toList();
   } 
 
   private _get_all_objects_except_ground() {
-    return this
-             .filter_objects(o => !o.is_ground)
-             .map(o => o.id)
-             .toList();
+    return this.filter_objects(o => !(o instanceof Ground))
+               .map(o => o.id)
+               .toList();
   }
 
   private _calculate_collision_after_time_unit(o_a_id: number, o_b_id: number, time_unit: number): Collision {

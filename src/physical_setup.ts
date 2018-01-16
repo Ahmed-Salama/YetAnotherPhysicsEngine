@@ -63,6 +63,8 @@ export default class PhysicalSetup extends GameElement {
         reduced_physical_setup._resolve_collisions_per_object(time_unit, object_id),
       final_game_set_1 as PhysicalSetup
     ); 
+
+    // Frame render time calculations
     const end_time = performance.now();
 
     var current_frame_calculations = this.frame_calculations.push(end_time - start_time);
@@ -159,15 +161,15 @@ export default class PhysicalSetup extends GameElement {
     const o_a_delta = o_a.calculate_delta(time_unit);
     const o_b_delta = o_b.calculate_delta(time_unit);
 
-    const o_a_updated = o_a.move(o_a_delta.position).rotate(o_a_delta.angle);
-    const o_b_updated = o_b.move(o_b_delta.position).rotate(o_b_delta.angle);
+    const o_a_translated = o_a.move(o_a_delta.position).rotate(o_a_delta.angle);
+    const o_b_translated = o_b.move(o_b_delta.position).rotate(o_b_delta.angle);
     
     const intersection = collision.intersections.first();
     const intersection_point = intersection.intersection_point;
 
     const elasticity = Math.min(intersection.self_line.elasticity, intersection.other_line.elasticity);
 
-    const v_a1 = o_a_updated.velocity;
+    const v_a1 = o_a_translated.velocity;
     const v_b1 = o_b.velocity;
 
     const c_a = o_a.center_of_mass.rotate(o_a.angle).add_vector(o_a.position);
@@ -178,7 +180,7 @@ export default class PhysicalSetup extends GameElement {
 
     const normal = intersection.other_line.normal;
 
-    const w_a1 = o_a_updated.angular_velocity;
+    const w_a1 = o_a_translated.angular_velocity;
     const w_b1 = o_b.angular_velocity;
 
     const v_ap1 = v_a1.add_vector(r_ap.crossW_inverted(w_a1));
@@ -186,10 +188,10 @@ export default class PhysicalSetup extends GameElement {
 
     const v_ab1 = v_ap1.subtract(v_bp1);
 
-    const m_a = o_a_updated.mass;
+    const m_a = o_a_translated.mass;
     const m_b = o_b.mass;
 
-    const i_a = o_a_updated.moment_of_inertia;
+    const i_a = o_a_translated.moment_of_inertia;
     const i_b = o_b.moment_of_inertia;
 
     const impulse = (1 + elasticity) * v_ab1.dot(normal) /

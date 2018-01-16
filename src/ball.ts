@@ -16,7 +16,6 @@ export default class Ball extends PhysicalObject {
     this.position = new Vector2D(80, 40);
     this.velocity = new Vector2D(0, 0);
     this.mass = 20;
-    this.name = "ball";
   }
 
   protected _build_lines() {

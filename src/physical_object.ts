@@ -15,7 +15,6 @@ export default class PhysicalObject extends GameElement {
   public mass: number;
   public moment_of_inertia: number;
   public center_of_mass: Vector2D;
-  public is_ground: boolean;
   public lines: Immutable.List<Line>;
 
 
@@ -169,9 +168,7 @@ export default class PhysicalObject extends GameElement {
                         ctx, camera_position);
     });
 
-    if (!this.is_ground) {
-      this._draw_circle(this.center_of_mass, 1, 2, "black", ctx, camera_position);
-    }
+    this._draw_circle(this.center_of_mass, 1, 2, "black", ctx, camera_position);
 
     const _stroke_line_no_angle = (start: Vector2D, end: Vector2D, color: string) => {
       ctx.save();

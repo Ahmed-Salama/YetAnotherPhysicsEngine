@@ -41,15 +41,20 @@ export default class PhysicalSetup extends GameElement {
     this.frame_calculations = Immutable.List();
   }
 
-  public updated(time_unit: number) {
+  public updated(time_unit: number): PhysicalSetup {
     const start_time = performance.now();
-    const all_objects_except_ground = this
-                                        .filter_objects(o => !o.is_ground)
-                                        .map(o => o.id)
-                                        .toList();
 
-    // Update every physical object
-    const final_game_set_1 = all_objects_except_ground.reduce(
+    const pipeline = new Pipeline<PhysicalSetup>(Immutable.List([
+      new PipelineTransformer(this._updated_before_collision, [time_unit]),
+      new PipelineTransformer(this._resolve_collisions, [time_unit]),
+      new PipelineTransformer(this._finish_frame_render_time_calculations, [start_time]),
+    ]));
+
+    return pipeline.execute(this);
+  }
+
+  private _updated_before_collision(time_unit: number): PhysicalSetup {
+    return this._get_all_objects_except_ground().reduce(
       (reduced_physical_setup, object_id) => {
         const object = reduced_physical_setup.objects.get(object_id);
         const next_state = object.updated_before_collision(time_unit, reduced_physical_setup.filter_objects(o => o.id != object.id).toList()) as PhysicalObject;
@@ -57,14 +62,17 @@ export default class PhysicalSetup extends GameElement {
       },
       this as PhysicalSetup
     ); 
+  }
 
-    const final_game_set = all_objects_except_ground.reduce(
+  private _resolve_collisions(time_unit: number): PhysicalSetup {
+    return this._get_all_objects_except_ground().reduce(
       (reduced_physical_setup, object_id) =>
         reduced_physical_setup._resolve_collisions_per_object(time_unit, object_id),
-      final_game_set_1 as PhysicalSetup
+      this as PhysicalSetup
     ); 
+  }
 
-    // Frame render time calculations
+  private _finish_frame_render_time_calculations(start_time: number): PhysicalSetup {
     const end_time = performance.now();
 
     var current_frame_calculations = this.frame_calculations.push(end_time - start_time);
@@ -72,52 +80,41 @@ export default class PhysicalSetup extends GameElement {
       current_frame_calculations = current_frame_calculations.shift();
     }
 
-    return final_game_set.copy({ frame_calculations: current_frame_calculations}) as GameElement;
+    return this.copy({ frame_calculations: current_frame_calculations});
   }
 
   private _resolve_collisions_per_object(time_unit: number, object_id: number): PhysicalSetup {
-      // Collide object with all remaining objects in the setup
       const all_objects_except_me = this.filter_objects(o => o.id != object_id).map(e => e.id);
-      const {
-            collided_objects_ids,
-            reduced_physical_setup: after_collision_physical_setup} = 
-            all_objects_except_me.reduce(
-              ({collided_objects_ids, reduced_physical_setup}, other_object_id) => {
-                const {next_physical_setup,
-                      collision} = reduced_physical_setup._collide_object_with_another(
-                                      object_id,
-                                      other_object_id,
-                                      time_unit);
+      const { collided_objects_ids,
+              reduced_physical_setup: after_collision_physical_setup } = 
+                all_objects_except_me.reduce(
+                  ({collided_objects_ids, reduced_physical_setup}, to_collide_object_id) => {
+                    const { next_physical_setup,
+                            collision } =
+                              reduced_physical_setup._collide_object_with_another(
+                                object_id,
+                                to_collide_object_id,
+                                time_unit);
 
-                return {
-                        collided_objects_ids: collision.collided() ? collided_objects_ids.push(other_object_id) : collided_objects_ids, 
-                        reduced_physical_setup: next_physical_setup};
-              },
-              { collided_objects_ids: Immutable.List<number>(), 
-                reduced_physical_setup: this as PhysicalSetup });
+                    return { collided_objects_ids: collision.collided() ? 
+                              collided_objects_ids.push(to_collide_object_id) :
+                              collided_objects_ids, 
+                             reduced_physical_setup: next_physical_setup};
+                  },
+                  { collided_objects_ids: Immutable.List<number>(), 
+                    reduced_physical_setup: this as PhysicalSetup });
 
+      const collided_objects = collided_objects_ids.map(id => after_collision_physical_setup.objects.get(id)).toList();
       const after_collision_object = after_collision_physical_setup.objects.get(object_id);
-      const next_state_after_collision_object = after_collision_object.updated_with_collisions(collided_objects_ids.map(id => after_collision_physical_setup.objects.get(id)).toList()) as PhysicalObject;
+      const next_state_after_collision_object = after_collision_object.updated_with_collisions(collided_objects);
 
+      // This is the place where object delta (in position and angle) is committed.
       const delta = next_state_after_collision_object.calculate_delta(time_unit);
       const updated_object_with_delta = next_state_after_collision_object
                                           .move(delta.position)
                                           .rotate(delta.angle);
 
       return after_collision_physical_setup.replace_element(updated_object_with_delta);
-  }
-
-  private _calculate_collision_after_time_unit(o_a_id: number, o_b_id: number, time_unit: number): Collision {
-    const o_a = this.objects.get(o_a_id);
-    const o_b = this.objects.get(o_b_id);
-
-    const o_a_delta = o_a.calculate_delta(time_unit);
-    const o_b_delta = o_b.calculate_delta(time_unit);
-
-    const o_a_updated = o_a.move(o_a_delta.position).rotate(o_a_delta.angle);
-    const o_b_updated = o_b.move(o_b_delta.position).rotate(o_b_delta.angle);
-
-    return o_a_updated.calculate_collision(o_b_updated);
   }
 
   public _collide_object_with_another(o_a_id: number, o_b_id: number, time_unit: number) {
@@ -129,11 +126,10 @@ export default class PhysicalSetup extends GameElement {
       };
     }
 
-    const o_b = this.objects.get(o_b_id);
-
     // Impulse-based collision handling.
     // Reference: https://www.myphysicslab.com/engine2D/collision-en.html#collision_physics
     const construct_collision_pipeline = () => {
+      const o_b = this.objects.get(o_b_id);
       if (o_b.is_ground) {
         return new Pipeline<PhysicalSetup>(Immutable.List([
           new PipelineTransformer(this._apply_ground_impulse_velocity, [o_a_id, collision, time_unit]),
@@ -147,9 +143,8 @@ export default class PhysicalSetup extends GameElement {
       }
     }
 
-    const final_physical_setup = construct_collision_pipeline().execute(this) as PhysicalSetup;
     return {
-      next_physical_setup: final_physical_setup,
+      next_physical_setup: construct_collision_pipeline().execute(this),
       collision: collision
     };
   }
@@ -352,4 +347,24 @@ export default class PhysicalSetup extends GameElement {
             .map(([k, v]) => v)
             .toList();
   } 
+
+  private _get_all_objects_except_ground() {
+    return this
+             .filter_objects(o => !o.is_ground)
+             .map(o => o.id)
+             .toList();
+  }
+
+  private _calculate_collision_after_time_unit(o_a_id: number, o_b_id: number, time_unit: number): Collision {
+    const o_a = this.objects.get(o_a_id);
+    const o_b = this.objects.get(o_b_id);
+
+    const o_a_delta = o_a.calculate_delta(time_unit);
+    const o_b_delta = o_b.calculate_delta(time_unit);
+
+    const o_a_updated = o_a.move(o_a_delta.position).rotate(o_a_delta.angle);
+    const o_b_updated = o_b.move(o_b_delta.position).rotate(o_b_delta.angle);
+
+    return o_a_updated.calculate_collision(o_b_updated);
+  }
 }

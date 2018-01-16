@@ -41,7 +41,6 @@ export default class Car extends PhysicalObject {
     this.flip_y_state = "idle";
     this.direction_x = 1;
     this.direction_y = 1;
-    this.name = "car";
     this.touching_ground = false;
   }
 

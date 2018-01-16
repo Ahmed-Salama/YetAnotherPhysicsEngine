@@ -1,8 +1,5 @@
-import Ball from './ball'
 import Camera from './camera'
-import Car from './car'
 import GameElement from './game_element'
-import Ground from './ground'
 import PhysicalObject from './physical_object'
 import Vector2D from './vector2d';
 import {Intersection} from './line'
@@ -10,26 +7,20 @@ import {Intersection} from './line'
 export default class PhysicalSetup extends GameElement {
   public objects: Immutable.Map<number, PhysicalObject>;
   public camera: Camera;
+  private _cameraObject: PhysicalObject;
 
-  constructor(initialize: boolean) {
+  constructor(objects: Immutable.Map<number, PhysicalObject>,
+              cameraObject: PhysicalObject, initialize: boolean) {
     super(initialize);
+    this.objects = objects;
+    this._cameraObject = cameraObject;
   }
 
   protected initialize() {
     super.initialize();
 
-    const my_car = new Car(true);
-    const ground = new Ground(true);
-    const ball = new Ball(true);
-
-    this.objects = Immutable.Map([
-        [my_car.id, my_car],
-        [ground.id, ground],
-        [ball.id, ball],
-    ]);
-
     this.camera = new Camera(true);
-    this.camera = this.camera.attach(my_car);
+    this.camera.attach(this._cameraObject);
   }
 
   public updated(time_unit: number) {
@@ -293,10 +284,9 @@ export default class PhysicalSetup extends GameElement {
   }
 
   public draw(ctx: CanvasRenderingContext2D) {
-      const self = this;
       this.objects
         .valueSeq()
-        .forEach((o) => o.draw(ctx, self.camera.get_coordinates(self)));
+        .forEach((o) => o.draw(ctx, this.camera.get_coordinates(this)));
   }
 
   public replace_element(element: PhysicalObject): PhysicalSetup {

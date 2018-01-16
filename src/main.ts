@@ -1,5 +1,5 @@
 import Constants from './constants'
-import PhysicalSetup from './physical_setup'
+import Game from './game';
 
 $(document).ready(() => {
   const body = $('body');
@@ -21,20 +21,20 @@ $(document).ready(() => {
   const $time = Rx.Observable.interval(Constants.time_step)
       .timeInterval();
 
-  $time.scan((physical_setup, time_unit) => {
+  $time.scan((game, time_unit) => {
       if (Constants.paused) {
-        return physical_setup;
+        return game;
       } else {
-        return physical_setup.updated(Constants.time_step * Constants.time_scale);
+        return game.updated(Constants.time_step * Constants.time_scale);
       }
-    }, new PhysicalSetup(true))
-    .subscribe((physical_setup: PhysicalSetup) => {
+    }, new Game())
+    .subscribe((game: Game) => {
       ctx.save();
       ctx.fillStyle = Constants.clear_rect_color;
       ctx.fillRect(0, 0, Constants.canvas_size, Constants.canvas_size);
       ctx.restore();
 
-      physical_setup.draw(ctx);
+      game.draw(ctx);
     });
 });
 

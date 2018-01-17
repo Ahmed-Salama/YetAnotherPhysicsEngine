@@ -28,12 +28,13 @@ export default class Constants {
   public static readonly field_height = 30;
   public static readonly field_width = 20;
   public static readonly frames_per_second = 40;
-  public static readonly general_elasticity = 0.7;
+  public static readonly general_elasticity = 0.6;
   public static readonly inner_field_width = Constants.field_width - 2;
   public static readonly jump_timer_duration = 8;
-  public static readonly time_scale = 2.3;
+  public static readonly dodge_timer_duration = 70;
+  public static readonly time_scale = 2.6;
   public static readonly time_step = 1000 / Constants.frames_per_second;
-  public static readonly tire_elasticity = 0.1;
+  public static readonly tire_elasticity = 0.2;
 
   public static debugging = false;
   public static paused = false;

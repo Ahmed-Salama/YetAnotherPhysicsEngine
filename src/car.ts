@@ -10,10 +10,11 @@ import { Collision } from './collision';
 
 export default class Car extends PhysicalObject {
   public static readonly NITRO_STRENGTH = 20;
-  public static readonly ROTATION_STRENGTH = 3;
-  public static readonly JUMP_STRENGTH = 18;
+  public static readonly ROTATION_STRENGTH = 4;
+  public static readonly JUMP_STRENGTH = 30;
 
   public flying_state: string;
+  public dodge_direction: number;
   public jump_state: string;
   public jump_timer: number;
   public jump_count: number;
@@ -36,8 +37,9 @@ export default class Car extends PhysicalObject {
     this.position = new Vector2D(80, 65);
     this.velocity = new Vector2D(0, -20);
     this.angular_velocity = 3;
-    this.mass = 100;
+    this.mass = 200;
     this.flying_state = "flying";
+    this.dodge_direction = 0;
     this.jump_state = "station";
     this.jump_timer = 0;
     this.jump_count = 0;
@@ -173,21 +175,34 @@ export default class Car extends PhysicalObject {
     });
   }
 
-  private _are_tires_touching_ground(grounds: Immutable.List<PhysicalObject>): boolean {
-    const TIRE_RADIUS = 3;
-    const tire_to_ground_distance = (tire: Vector2D, ground: PhysicalObject): number => {
-      const projected_tire = tire.rotate(this.angle).add_vector(this.position);
-      return ground.lines.map(line => line.offset(ground.position).rotate(ground.angle).point_distance(projected_tire)).min();
+  private _get_ground_lines_tires_are_touching(grounds: Immutable.List<PhysicalObject>): Immutable.List<Line> {
+    const TIRE_RADIUS = 2;
+    const self = this;
+
+    const get_ground_lines_touching_tires = (tires: Immutable.List<Vector2D>, ground: PhysicalObject): Immutable.List<Line> => {
+      return ground.lines.filter(ground_line => {
+        return tires.every(tire => {
+          const projected_tire = tire.rotate(self.angle).add_vector(self.position);
+          return ground_line.point_distance(projected_tire) < TIRE_RADIUS;
+        });
+      }).toList();
     }
-    return this.tires.every(tire => grounds.some(ground => tire_to_ground_distance(tire, ground) < TIRE_RADIUS));
+
+    return grounds.flatMap(ground => get_ground_lines_touching_tires(this.tires, ground)).toList();
   }
 
-  private _apply_jump_reset(other_objects: Immutable.List<PhysicalObject>): PhysicalObject {
-    if (this._are_tires_touching_ground(other_objects.filter(o => o.is_ground).toList())) {
+  private _apply_jump_reset(collided_objects: Immutable.List<PhysicalObject>): PhysicalObject {
+    const collided_grounds = collided_objects.filter(o => o.is_ground).toList();
+    const ground_lines_touching = this._get_ground_lines_tires_are_touching(collided_grounds);
+    if (ground_lines_touching.size > 0) {
+      const ground_line_touching = ground_lines_touching.first();
+      const new_angle = ground_line_touching.normal.crossW(this.direction_y * -1).angle();
+
+      // Reset angular velocity and set the angle so that the forward is perpendicular to the ground
       if (this.jump_timer > 0) {
-        return this.copy({ touching_ground: true });
+        return this.copy({ touching_ground: true, angular_velocity: 0, angle: new_angle, jump_timer: 0 });
       } else {
-        return this.copy({ jump_count: 2, touching_ground: true });
+        return this.copy({ jump_count: 2, touching_ground: true, angular_velocity: 0, angle: new_angle, jump_timer: 0 });
       }
     } else {
       return this.copy({ touching_ground: false });
@@ -195,8 +210,12 @@ export default class Car extends PhysicalObject {
   }
 
   private _apply_jump_input(time_unit: number): Car {
+    const is_dodging = 
+      !this.touching_ground && 
+      ((Constants.key_pressed.get("left") == 1) !== (Constants.key_pressed.get("right") == 1));
+
     const after_jump_input: Car = Constants.key_pressed.get("A") ?
-      (this.jump_state == "station" && this.jump_count > 0 ?
+      (this.jump_state == "station" && this.jump_count > 0 && !is_dodging ?
         this.copy({
           flying_state: "flying",
           jump_state: "jumping",
@@ -223,6 +242,7 @@ export default class Car extends PhysicalObject {
       this.jumper
         .reverse()
         .normalize()
+        .multiply(car_flying ? 1 : 0)
         .multiply(car_jumping ? 1 : 0)
         .rotate(this.angle)
         .multiply(Car.JUMP_STRENGTH)
@@ -230,6 +250,59 @@ export default class Car extends PhysicalObject {
 
     return after_jump_input.copy({
       velocity: after_jump_input.velocity.add_vector(jump_vector),
+    });
+  }
+
+  private _apply_dodge_input(time_unit: number): Car {
+    const is_dodging = 
+      !this.touching_ground && 
+      ((Constants.key_pressed.get("left") == 1) !== (Constants.key_pressed.get("right") == 1));
+
+    const dodge_direction = 
+      (Constants.key_pressed.get("left") * -1 +
+      Constants.key_pressed.get("right"));
+
+    const after_jump_input: Car = Constants.key_pressed.get("A") ?
+      (this.jump_state == "station" && this.jump_count > 0 && is_dodging ?
+        this.copy({
+          flying_state: "dodging",
+          dodge_direction: dodge_direction,
+          jump_state: "jumping",
+          jump_timer: Constants.dodge_timer_duration,
+          jump_count: 0
+        }) :
+        this.copy({
+          jump_timer: Math.max(0, this.jump_timer - 1)
+        })) :
+      (this.jump_state == "station" ?
+        this.copy({
+          jump_timer: Math.max(0, this.jump_timer - 1)
+        }) :
+        this.copy({
+          jump_state: "station",
+          jump_timer: Math.max(0, this.jump_timer - 1)
+        }));
+
+    const car_jumping_index = after_jump_input.jump_timer;
+    const car_jumping = after_jump_input.jump_timer > 0;
+    const car_dodging = after_jump_input.flying_state == "dodging";
+
+    const apply_dodge = (car_dodging ? 1 : 0) * (car_jumping ? 1 : 0);
+    const dodge_angular_velocity = apply_dodge * after_jump_input.dodge_direction * Car.ROTATION_STRENGTH * 2 * time_unit * 1.0 / 1000;
+    const dodge_velocity =
+      this.forward
+        .reverse()
+        .rotate(this.angle)
+        .multiply(this.direction_x * this.direction_y * after_jump_input.dodge_direction)
+        .resetY()
+        .normalize()
+        .multiply(car_jumping_index == Constants.dodge_timer_duration ? 1 : 0)
+        .multiply(apply_dodge)
+        .multiply(30);
+
+    return after_jump_input.copy({
+      velocity: after_jump_input.velocity.add_vector(dodge_velocity),
+      angular_velocity: after_jump_input.angular_velocity + dodge_angular_velocity,
     });
   }
 
@@ -257,6 +330,7 @@ export default class Car extends PhysicalObject {
       new PipelineTransformer(this._apply_ground_movement_input, [time_unit]),
       new PipelineTransformer(this._apply_jump_reset, [other_objects]),
       new PipelineTransformer(this._apply_jump_input, [time_unit]),
+      new PipelineTransformer(this._apply_dodge_input, [time_unit]),
       new PipelineTransformer(this._apply_rotation_input, [time_unit]),
       new PipelineTransformer(this._updated_with_physics, [time_unit])
     ]));
@@ -264,8 +338,33 @@ export default class Car extends PhysicalObject {
     return pipeline.execute(this) as Car;
   }
 
+  private _cancel_vertical_velocity_if_dodging(): Car {
+    const car_jumping = this.jump_timer > 0;
+    const car_dodging = this.flying_state == "dodging";
+
+    if (car_jumping && car_dodging) {
+      return this.copy({ velocity: this.velocity.resetY() });
+    } else {
+      return this;
+    }
+  }
+
+  private _cancel_angular_velocity_if_touching_ground(): Car {
+    if (this.touching_ground) {
+      return this.copy({ angular_velocity: 0});
+    }
+    else {
+      return this;
+    }
+  }
+
   public updated_with_collisions(collided_objects: Immutable.List<PhysicalObject>): Car {
-    return this;
+    const pipeline = new Pipeline<PhysicalObject>(Immutable.List([
+      new PipelineTransformer(this._cancel_vertical_velocity_if_dodging, []),
+      new PipelineTransformer(this._cancel_angular_velocity_if_touching_ground, []),
+    ]));
+
+    return pipeline.execute(this) as Car;
   }
 
   public draw(ctx: CanvasRenderingContext2D, camera_position: Vector2D) {

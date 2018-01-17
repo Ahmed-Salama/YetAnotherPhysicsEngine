@@ -49,6 +49,10 @@ export default class Vector2D extends Entity {
     return this.copy({ x: 0 });
   }
 
+  public resetY(): Vector2D {
+    return this.copy({ y: 0 });
+  }
+
   public mapX(f: (_: number) => number): Vector2D {
     return this.copy({ x: f(this.x) });
   }

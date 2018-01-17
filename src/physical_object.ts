@@ -98,7 +98,8 @@ export default class PhysicalObject extends GameElement {
     const angular_velocity_air_drag =
       (this.angular_velocity > 0 ? -1 : 1) *
       Math.pow(this.angular_velocity, 2) *
-      0.74;
+      1 *
+      time_fraction;
 
     return this.copy({
       velocity:
@@ -106,7 +107,7 @@ export default class PhysicalObject extends GameElement {
           .add_vector(velocity_air_drag_vector),
       angular_velocity:
         this.angular_velocity +
-        angular_velocity_air_drag * time_fraction
+        angular_velocity_air_drag
     });
   }
 

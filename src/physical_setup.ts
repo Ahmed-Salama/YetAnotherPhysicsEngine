@@ -118,7 +118,7 @@ export default class PhysicalSetup extends GameElement {
   }
 
   public _collide_object_with_another(o_a_id: number, o_b_id: number, time_unit: number) {
-    const collision = this._calculate_collision_after_time_unit(o_a_id, o_b_id, time_unit);
+    const collision = this._calculate_collisions(o_a_id, o_b_id, time_unit);
     if (!collision.collided()) {
       return {
         next_physical_setup: this as PhysicalSetup,
@@ -167,10 +167,10 @@ export default class PhysicalSetup extends GameElement {
     const v_a1 = o_a_translated.velocity;
     const v_b1 = o_b.velocity;
 
-    const c_a = o_a.center_of_mass.rotate(o_a.angle).add_vector(o_a.position);
+    const c_a = o_a_translated.position;
     const r_ap = c_a.to(intersection_point);
 
-    const c_b = o_b.center_of_mass.rotate(o_b.angle).add_vector(o_b.position);
+    const c_b = o_b_translated.position;
     const r_bp = c_b.to(intersection_point);
 
     const normal = intersection.other_line.normal;
@@ -227,10 +227,8 @@ export default class PhysicalSetup extends GameElement {
 
     const normal = intersection.other_line.normal;
     
-    const r_ap = o_a_translated.center_of_mass
-                  .rotate(o_a_translated.angle)
-                  .add_vector(o_a_translated.position)
-                  .to(intersection_point);
+    const c_a = o_a_translated.position;
+    const r_ap = c_a.to(intersection_point);
 
     const v_a1 = o_a_translated.velocity;
     const w_a1 = o_a_translated.angular_velocity;
@@ -319,7 +317,7 @@ export default class PhysicalSetup extends GameElement {
     }
 
     const multiplier = Utils.binary_search(0, 10, 5, can);
-    const amplifier = 2;
+    const amplifier = 1;
     const o_a_updated = o_a.copy<PhysicalObject>({ velocity: o_a.velocity.add_vector(contact_velocity_a.multiply(multiplier * amplifier) )});
     const o_b_updated = o_b.copy<PhysicalObject>({ velocity: o_b.velocity.add_vector(contact_velocity_b.multiply(multiplier * amplifier) )});
 
@@ -355,16 +353,16 @@ export default class PhysicalSetup extends GameElement {
              .toList();
   }
 
-  private _calculate_collision_after_time_unit(o_a_id: number, o_b_id: number, time_unit: number): Collision {
+  private _calculate_collisions(o_a_id: number, o_b_id: number, time_unit: number): Collision {
     const o_a = this.objects.get(o_a_id);
     const o_b = this.objects.get(o_b_id);
 
     const o_a_delta = o_a.calculate_delta(time_unit);
     const o_b_delta = o_b.calculate_delta(time_unit);
 
-    const o_a_updated = o_a.move(o_a_delta.position).rotate(o_a_delta.angle);
-    const o_b_updated = o_b.move(o_b_delta.position).rotate(o_b_delta.angle);
+    const o_a_translated = o_a.move(o_a_delta.position).rotate(o_a_delta.angle);
+    const o_b_translated = o_b.move(o_b_delta.position).rotate(o_b_delta.angle);
 
-    return o_a_updated.calculate_collision(o_b_updated);
+    return o_a_translated.calculate_collision(o_b_translated);
   }
 }

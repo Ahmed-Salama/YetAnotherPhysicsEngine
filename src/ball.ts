@@ -38,6 +38,8 @@ export default class Ball extends PhysicalObject {
                                             end_position,
                                             Constants.general_elasticity));
     }
+
+
   }
 
   public updated_before_collision(time_unit: number, other_objects: Immutable.List<PhysicalObject>): PhysicalObject {
@@ -49,6 +51,7 @@ export default class Ball extends PhysicalObject {
   }
 
   public draw(ctx: CanvasRenderingContext2D, camera_position: Vector2D) {
+    const self = this;
     ctx.save();
     if (Constants.debugging) {
       ctx.strokeStyle = "blue";
@@ -64,6 +67,15 @@ export default class Ball extends PhysicalObject {
                         "#85C1E9", ctx, camera_position);
       this._draw_circle(Vector2D.empty, 1, Constants.drawing_scale * 0.2 * this.radius,
                         "#AED6F1", ctx, camera_position);
+
+
+      const fixed_shape_radius = 9;
+      const fixed_shape_angles = Immutable.List([0, 2 / 3 * Math.PI, 4 / 3 * Math.PI]);
+      fixed_shape_angles.forEach(angle => {
+        const center = new Vector2D(fixed_shape_radius * Math.cos(angle),
+                                    fixed_shape_radius * Math.sin(angle));
+        self._draw_circle(center, 1, 10, "#2C3E50", ctx, camera_position);
+      });
     }
     ctx.restore();
   }

@@ -34,9 +34,9 @@ export default class Car extends PhysicalObject {
 
   protected _define_attributes() {
     super._define_attributes();
-    this.position = new Vector2D(80, 65);
-    this.velocity = new Vector2D(0, -20);
-    this.angular_velocity = 3;
+    this.position = new Vector2D(50, 80);
+    this.velocity = new Vector2D(0, 0);
+    this.angular_velocity = 0;
     this.mass = 200;
     this.flying_state = "flying";
     this.dodge_direction = 0;
@@ -199,11 +199,7 @@ export default class Car extends PhysicalObject {
       const new_angle = ground_line_touching.normal.crossW(this.direction_y * -1).angle();
 
       // Reset angular velocity and set the angle so that the forward is perpendicular to the ground
-      if (this.jump_timer > 0) {
-        return this.copy({ touching_ground: true, angular_velocity: 0, angle: new_angle, jump_timer: 0 });
-      } else {
-        return this.copy({ jump_count: 2, touching_ground: true, angular_velocity: 0, angle: new_angle, jump_timer: 0 });
-      }
+      return this.copy({ jump_count: this.jump_timer > 0 ? this.jump_count : 2, touching_ground: true, angular_velocity: 0, angle: new_angle });
     } else {
       return this.copy({ touching_ground: false });
     }
@@ -351,7 +347,7 @@ export default class Car extends PhysicalObject {
 
   private _cancel_angular_velocity_if_touching_ground(): Car {
     if (this.touching_ground) {
-      return this.copy({ angular_velocity: 0});
+      return this.copy({ angular_velocity: 0 });
     }
     else {
       return this;

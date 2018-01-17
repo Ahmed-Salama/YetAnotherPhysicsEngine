@@ -28,7 +28,7 @@ export default class Constants {
   public static readonly field_height = 30;
   public static readonly field_width = 20;
   public static readonly frames_per_second = 40;
-  public static readonly general_elasticity = 0.6;
+  public static readonly general_elasticity = 0.8;
   public static readonly inner_field_width = Constants.field_width - 2;
   public static readonly jump_timer_duration = 8;
   public static readonly dodge_timer_duration = 70;

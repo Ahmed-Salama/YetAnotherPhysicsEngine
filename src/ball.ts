@@ -15,8 +15,8 @@ export default class Ball extends PhysicalObject {
   protected _define_attributes() {
     super._define_attributes();
     this.radius = 10;
-    this.position = new Vector2D(80, 40);
-    this.velocity = new Vector2D(0, 0);
+    this.position = new Vector2D(60, 40);
+    this.velocity = new Vector2D(5, 0);
     this.mass = 40;
     this.name = "ball";
   }

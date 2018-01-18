@@ -20,11 +20,11 @@ export default class PhysicalObject extends GameElement {
   public lines: Immutable.List<Line>;
 
 
-  constructor(initialize: boolean) {
-    super(initialize);
+  constructor(initialize: boolean, ...rest: any[]) {
+    super(initialize, ...rest);
   }
 
-  protected initialize() {
+  protected initialize(...rest: any[]) {
     this._define_attributes();
     this._build_lines();
 

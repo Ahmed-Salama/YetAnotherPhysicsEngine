@@ -5,12 +5,15 @@ import {Line} from './line'
 import PhysicalObject from './physical_object';
 
 export default class Ground extends PhysicalObject {
-  public outer_lines: Immutable.List<Line>;
-  public points: Immutable.List<Array<number>>;
-  public outer_points: Immutable.List<Array<number>>;
+  public points: Array<Array<number>>;
 
-  constructor(initialize: boolean) {
-    super(initialize);
+  constructor(initialize: boolean, points: Array<Array<number>>) {
+    super(initialize, points);
+  }
+
+  protected initialize(points: Array<Array<number>>) {
+    this.points = points;
+    super.initialize();
   }
 
   protected _define_attributes() {
@@ -25,36 +28,14 @@ export default class Ground extends PhysicalObject {
   protected _build_lines() {
     super._build_lines();
 
-    this.outer_lines = Immutable.List();
-
-    const padding = 10;
-    this.points = Immutable.List([[0+padding, 0+padding], [200 - padding, 0+padding],
-                                  [200-padding, 100-padding], [0+padding, 100-padding]]);
-    const offsets = Immutable.List([[-1, -1], [1, -1], [1, 1], [-1, 1]]);
-    const offset = 4;
-    this.outer_points = this.points.zip(offsets).map(([p, o]) =>
-        [p[0] + o[0] * offset, p[1] + o[1] * offset]).toList();
-
-    const points_array = this.points.toArray();
-    for (var i = 0; i < this.points.size; i++) {
-      var j = (i + 1) % this.points.size;
-      const start_position = new Vector2D(points_array[i][0], points_array[i][1]);
-      const end_position = new Vector2D(points_array[j][0], points_array[j][1]);
+    for (var i = 0; i < this.points.length; i++) {
+      var j = (i + 1) % this.points.length;
+      const start_position = new Vector2D(this.points[i][0], this.points[i][1]);
+      const end_position = new Vector2D(this.points[j][0], this.points[j][1]);
       this.lines = this.lines.push(new Line(true,
                                             start_position,
                                             end_position,
                                             Constants.general_elasticity));
-    }
-
-    const outer_points_array = this.outer_points.toArray();
-    for (var i = 0; i < outer_points_array.length; i++) {
-      var j = (i + 1) % outer_points_array.length;
-      const start_position = new Vector2D(outer_points_array[i][0], outer_points_array[i][1]);
-      const end_position = new Vector2D(outer_points_array[j][0], outer_points_array[j][1]);
-      this.outer_lines = this.outer_lines.push(new Line(true,
-                                                        start_position,
-                                                        end_position,
-                                                        Constants.general_elasticity));
     }
   }
 
@@ -79,27 +60,15 @@ export default class Ground extends PhysicalObject {
     const draw_polygon_pattern = (points: number[][]) => {
       // ctx.fillStyle = ctx.createPattern(patter_canvas, 'repeat');
       ctx.fillStyle = Constants.ground_pattern_color;
+      ctx.strokeStyle = Constants.ground_stroke_color;
       move_to(points[0][0], points[0][1]);
       for (var i = 1; i < points.length; i++) {
           line_to(points[i][0], points[i][1]);
       }
+      ctx.fill();
+      ctx.stroke();
     }
-
-    draw_polygon_pattern(this.points.toArray());
-    draw_polygon_pattern(this.outer_points.toArray());
-    ctx.fill('evenodd');
-
-    ctx.beginPath();
-    const draw_polygon = (points: number[][]) => {
-      move_to(points[0][0], points[0][1]);
-      for (var i = 1; i < points.length + 1; i++) {
-        const index = i % points.length;
-        line_to(points[index][0], points[index][1]);
-      }
-    }
-    ctx.strokeStyle = Constants.ground_stroke_color;
-    draw_polygon(this.points.toArray());
-    ctx.stroke();
+    draw_polygon_pattern(this.points);
     ctx.restore();
   }
 }

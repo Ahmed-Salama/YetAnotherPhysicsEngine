@@ -2,10 +2,10 @@ export default class Entity {
   public id: number;
   public name: string;
 
-  constructor(initialize = false) {
+  constructor(initialize = false, ...rest: any[]) {
     this.id = Math.random();
     if (initialize) {
-      this.initialize();
+      this.initialize(...rest);
     }
   }
 
@@ -21,6 +21,6 @@ export default class Entity {
     return this.id == e.id;
   }
 
-  protected initialize() {
+  protected initialize(...rest: any[]) {
   }
 }

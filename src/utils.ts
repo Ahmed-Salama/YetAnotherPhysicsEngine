@@ -68,12 +68,21 @@ export default class Utils {
     }
   }
 
-  public static binary_search(lo: number, hi: number, iterations: number, can: (_: number) => boolean): number {
+  public static binary_search_yn(lo: number, hi: number, iterations: number, can: (_: number) => boolean): number {
     if (iterations == 0) return hi;
 
     const md = (lo + hi) / 2;
 
-    if (can(md)) return Utils.binary_search(lo, md, iterations - 1, can);
-    else return Utils.binary_search(md, hi, iterations - 1, can);
+    if (can(md)) return Utils.binary_search_yn(lo, md, iterations - 1, can);
+    else return Utils.binary_search_yn(md, hi, iterations - 1, can);
+  }
+
+  public static binary_search_ny(lo: number, hi: number, iterations: number, can: (_: number) => boolean): number {
+    if (iterations == 0) return lo;
+
+    const md = (lo + hi) / 2;
+
+    if (can(md)) return Utils.binary_search_ny(md, hi, iterations - 1, can);
+    else return Utils.binary_search_ny(lo, md, iterations - 1, can);
   }
 }

@@ -6,7 +6,7 @@ import Vector2D from './vector2d'
 import {Intersection, Line} from './line'
 import GameElement from './game_element';
 
-const gravity_vector = new Vector2D(0, 9.8);
+const GRAVITY_VECTOR = new Vector2D(0, 9.8);
 
 export default class PhysicalObject extends GameElement {
   public position: Vector2D;
@@ -83,7 +83,7 @@ export default class PhysicalObject extends GameElement {
 
     const new_velocity = 
       this.velocity
-        .add_vector(gravity_vector.multiply(time_fraction));
+        .add_vector(GRAVITY_VECTOR.multiply(time_fraction));
 
     const velocity_air_drag_coeff = 0.02;
     const velocity_air_drag_vector = 
@@ -91,15 +91,21 @@ export default class PhysicalObject extends GameElement {
         .normalize()
         .reverse()
         .multiply(
-          Math.pow(new_velocity.length(), 2) *
-          velocity_air_drag_coeff *
-          time_fraction);
+          Math.min(
+            Math.abs(new_velocity.length()),
+            Math.pow(new_velocity.length(), 2) *
+            velocity_air_drag_coeff *
+            time_fraction
+          ));
 
     const angular_velocity_air_drag =
       (this.angular_velocity > 0 ? -1 : 1) *
-      Math.pow(this.angular_velocity, 2) *
-      1 *
-      time_fraction;
+      Math.min(
+        Math.abs(this.angular_velocity),
+        (this.angular_velocity * this.angular_velocity) *
+        2 *
+        time_fraction
+      );
 
     return this.copy({
       velocity:
@@ -202,27 +208,27 @@ export default class PhysicalObject extends GameElement {
   public calculate_collision(other: PhysicalObject) {
     const self = this;
     var done = false;
-    var intersection_results = Immutable.List<Intersection>([]);
-    this.lines
-      .forEach(l1 => {
-        if (done) return;
-
+    const intersection_results = this.lines
+      .flatMap(l1 => {
         const projected_l1 = l1.rotate(self.angle).offset(self.position);
-        other.lines
-          .forEach(l2 => {
-            if (done) return;
-
+        return other.lines
+          .flatMap(l2 => {
             const projected_l2 = l2.rotate(other.angle).offset(other.position);
             const intersection_result = projected_l1.is_intersecting(projected_l2);
 
             if (intersection_result.intersection_exists) {
-              done = true;
-              intersection_results = Immutable.List([intersection_result]);
+              return Immutable.List([intersection_result]);
+            } else {
+              return Immutable.List<Intersection>();
             }
           });
-      });
+      }).toList();
+    
+    // const self_colliding_lines_count = intersection_results.groupBy(x => x.self_line.id).count();
+    const other_colliding_lines_count = intersection_results.groupBy(x => x.other_line.id).count();
 
-    return new Collision(intersection_results);
+    const use_self_lines_normal = other_colliding_lines_count == 1 ? false : true;
+    return new Collision(true, intersection_results, use_self_lines_normal);
   }
 
   public move(vector: Vector2D): PhysicalObject {

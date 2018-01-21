@@ -11,10 +11,15 @@ export interface CollisionResult {
 
 export class Collision extends Entity {
   public intersections: Immutable.List<Intersection>;
+  use_self_lines_normal: boolean;
 
-  constructor(intersections: Immutable.List<Intersection>) {
-    super();
+  constructor(initialize: boolean, intersections: Immutable.List<Intersection>, use_self_lines_normal: boolean) {
+    super(initialize, intersections, use_self_lines_normal);
+  }
+
+  public initialize(intersections: Immutable.List<Intersection>, use_self_lines_normal: boolean) {
     this.intersections = intersections;
+    this.use_self_lines_normal = use_self_lines_normal;
   }
 
   collided() {

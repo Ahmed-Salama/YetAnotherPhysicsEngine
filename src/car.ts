@@ -27,6 +27,9 @@ export default class Car extends PhysicalObject {
   public direction_x: number;
   public direction_y: number;
   public touching_ground: boolean;
+  public touching_ground_normals: Immutable.List<Vector2D>;
+  public anchoring_ground: boolean;
+  public anchoring_ground_normals: Immutable.List<Vector2D>;
 
   constructor(initialize: boolean) {
       super(initialize);
@@ -56,9 +59,9 @@ export default class Car extends PhysicalObject {
     super._build_lines();
 
     const f = 3;
-    const points = [[20, 10], [20, 4],
+    const points = [[20, 8], [20, 4],
                     [-2, -7], [-20, -10],
-                    [-20, 10], [-16, 14], [16, 14]];
+                    [-20, 8], [-14, 14], [14, 14]];
 
     const up_vector = new Vector2D(0, -1);
     const normal_overrides = [null, up_vector,
@@ -67,8 +70,7 @@ export default class Car extends PhysicalObject {
 
     const elasticity = [Constants.general_elasticity, Constants.general_elasticity,
                         Constants.general_elasticity, Constants.general_elasticity,
-                        Constants.tire_elasticity, Constants.tire_elasticity,
-                        Constants.tire_elasticity];
+                        Constants.tire_elasticity, Constants.tire_elasticity, Constants.tire_elasticity];
 
     for (let i = 0; i < points.length; i++) {
       const j = (i + 1) % points.length;
@@ -175,7 +177,7 @@ export default class Car extends PhysicalObject {
     });
   }
 
-  private _get_ground_lines_tires_are_touching(grounds: Immutable.List<PhysicalObject>): Immutable.List<Line> {
+  private _get_ground_lines_touching_both_tires(grounds: Immutable.List<PhysicalObject>): Immutable.List<Line> {
     const TIRE_RADIUS = 2;
     const self = this;
 
@@ -191,17 +193,52 @@ export default class Car extends PhysicalObject {
     return grounds.flatMap(ground => get_ground_lines_touching_tires(this.tires, ground)).toList();
   }
 
-  private _apply_jump_reset(collided_objects: Immutable.List<PhysicalObject>): PhysicalObject {
+  private _get_ground_lines_touching_single_tire(grounds: Immutable.List<PhysicalObject>): Immutable.List<Line> {
+    const TIRE_RADIUS = 2;
+    const self = this;
+
+    const get_ground_lines_touching_tires = (tires: Immutable.List<Vector2D>, ground: PhysicalObject): Immutable.List<Line> => {
+      return ground.lines.filter(ground_line => {
+        return tires.some(tire => {
+          const projected_tire = tire.rotate(self.angle).add_vector(self.position);
+          return ground_line.point_distance(projected_tire) < TIRE_RADIUS;
+        });
+      }).toList();
+    }
+
+    return grounds.flatMap(ground => get_ground_lines_touching_tires(this.tires, ground)).toList();
+  }
+
+  private _apply_ground_touches(collided_objects: Immutable.List<PhysicalObject>): PhysicalObject {
     const collided_grounds = collided_objects.filter(o => o.is_ground).toList();
-    const ground_lines_touching = this._get_ground_lines_tires_are_touching(collided_grounds);
-    if (ground_lines_touching.size > 0) {
-      const ground_line_touching = ground_lines_touching.first();
-      const new_angle = ground_line_touching.normal.crossW(this.direction_y * -1).angle();
+    const ground_lines_touching_both_tires = this._get_ground_lines_touching_both_tires(collided_grounds);
+    const ground_lines_touching_single_tires = this._get_ground_lines_touching_single_tire(collided_grounds);
+
+    return this.copy({
+      touching_ground: ground_lines_touching_both_tires.size > 0,
+      touching_ground_normals: ground_lines_touching_both_tires.map(l => l.normal).toList(),
+      anchoring_ground: ground_lines_touching_single_tires.size > 0,
+      anchoring_ground_normals: ground_lines_touching_single_tires.map(l => l.normal).toList()
+    });
+  }
+
+  private _apply_anchoring_ground_caps(): PhysicalObject {
+    if (this.anchoring_ground) {
+      const new_velocity = this.anchoring_ground_normals.reduce((r_v, n) => r_v.subtract(n.multiply(Math.max(0, r_v.dot(n)))), this.velocity);
+      return this.copy({ velocity: new_velocity });
+    } else {
+      return this;
+    }
+  }
+
+  private _apply_jump_reset(): PhysicalObject {
+    if (this.touching_ground) {
+      const new_angle = this.touching_ground_normals.first().crossW(this.direction_y * -1).angle();
 
       // Reset angular velocity and set the angle so that the forward is perpendicular to the ground
-      return this.copy({ jump_count: this.jump_timer > 0 ? this.jump_count : 2, touching_ground: true, angular_velocity: 0, angle: new_angle });
+      return this.copy({ jump_count: this.jump_timer > 0 ? this.jump_count : 2, angular_velocity: 0, angle: new_angle });
     } else {
-      return this.copy({ touching_ground: false });
+      return this;
     }
   }
 
@@ -324,7 +361,8 @@ export default class Car extends PhysicalObject {
       new PipelineTransformer(this._apply_flip_y_input, []),
       new PipelineTransformer(this._apply_nitro_input, [time_unit]),
       new PipelineTransformer(this._apply_ground_movement_input, [time_unit]),
-      new PipelineTransformer(this._apply_jump_reset, [other_objects]),
+      new PipelineTransformer(this._apply_ground_touches, [other_objects]),
+      new PipelineTransformer(this._apply_jump_reset, []),
       new PipelineTransformer(this._apply_jump_input, [time_unit]),
       new PipelineTransformer(this._apply_dodge_input, [time_unit]),
       new PipelineTransformer(this._apply_rotation_input, [time_unit]),
@@ -358,6 +396,7 @@ export default class Car extends PhysicalObject {
     const pipeline = new Pipeline<PhysicalObject>(Immutable.List([
       new PipelineTransformer(this._cancel_vertical_velocity_if_dodging, []),
       new PipelineTransformer(this._cancel_angular_velocity_if_touching_ground, []),
+      // new PipelineTransformer(this._apply_anchoring_ground_caps, []),
     ]));
 
     return pipeline.execute(this) as Car;

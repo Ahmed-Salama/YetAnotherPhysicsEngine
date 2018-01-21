@@ -158,30 +158,24 @@ export default class PhysicalSetup extends GameElement {
   public _apply_impulse_velocity(o_a_id: number, o_b_id: number, collision: Collision, time_unit: number): PhysicalSetup {
     const o_a = this.objects.get(o_a_id);
     const o_b = this.objects.get(o_b_id);
-
-    const o_a_delta = o_a.calculate_delta(time_unit);
-    const o_b_delta = o_b.calculate_delta(time_unit);
-
-    const o_a_translated = o_a.move(o_a_delta.position).rotate(o_a_delta.angle);
-    const o_b_translated = o_b.move(o_b_delta.position).rotate(o_b_delta.angle);
     
     const intersection = collision.intersections.first();
     const intersection_point = intersection.intersection_point;
 
     const elasticity = Math.min(intersection.self_line.elasticity, intersection.other_line.elasticity);
 
-    const v_a1 = o_a_translated.velocity;
+    const v_a1 = o_a.velocity;
     const v_b1 = o_b.velocity;
 
-    const c_a = o_a_translated.position;
+    const c_a = o_a.position;
     const r_ap = c_a.to(intersection_point);
 
-    const c_b = o_b_translated.position;
+    const c_b = o_b.position;
     const r_bp = c_b.to(intersection_point);
 
-    const normal = intersection.other_line.normal;
+    const normal = collision.use_self_lines_normal ? intersection.self_line.normal.reverse() : intersection.other_line.normal;
 
-    const w_a1 = o_a_translated.angular_velocity;
+    const w_a1 = o_a.angular_velocity;
     const w_b1 = o_b.angular_velocity;
 
     const v_ap1 = v_a1.add_vector(r_ap.crossW_inverted(w_a1));
@@ -189,10 +183,10 @@ export default class PhysicalSetup extends GameElement {
 
     const v_ab1 = v_ap1.subtract(v_bp1);
 
-    const m_a = o_a_translated.mass;
+    const m_a = o_a.mass;
     const m_b = o_b.mass;
 
-    const i_a = o_a_translated.moment_of_inertia;
+    const i_a = o_a.moment_of_inertia;
     const i_b = o_b.moment_of_inertia;
 
     const impulse = (1 + elasticity) * v_ab1.dot(normal) /
@@ -223,8 +217,6 @@ export default class PhysicalSetup extends GameElement {
 
   public _apply_ground_impulse_velocity(o_a_id: number, collision: Collision, time_unit: number): PhysicalSetup {
     const o_a = this.objects.get(o_a_id);
-    const o_a_delta = o_a.calculate_delta(time_unit);
-    const o_a_translated = o_a.move(o_a_delta.position).rotate(o_a_delta.angle);
 
     const intersection = collision.intersections.first();
     const intersection_point = intersection.intersection_point;
@@ -233,21 +225,21 @@ export default class PhysicalSetup extends GameElement {
 
     const normal = intersection.other_line.normal;
     
-    const c_a = o_a_translated.position;
+    const c_a = o_a.position;
     const r_ap = c_a.to(intersection_point);
 
-    const v_a1 = o_a_translated.velocity;
-    const w_a1 = o_a_translated.angular_velocity;
+    const v_a1 = o_a.velocity;
+    const w_a1 = o_a.angular_velocity;
 
     const v_ap1 = v_a1.add_vector(r_ap.crossW_inverted(w_a1));
 
-    const m_a = o_a_translated.mass;
-    const i_a = o_a_translated.moment_of_inertia;
+    const m_a = o_a.mass;
+    const i_a = o_a.moment_of_inertia;
 
-    const impulse = - (1 + elasticity) * v_ap1.dot(normal) / (1.0/m_a + Math.pow(r_ap.cross(normal), 2)/i_a);
+    const impulse = (1 + elasticity) * v_ap1.dot(normal) / (1.0/m_a + Math.pow(r_ap.cross(normal), 2)/i_a);
 
-    const impulse_velocity = normal.multiply(impulse / m_a);
-    const impulse_angular_velocity = r_ap.cross(normal.multiply(impulse)) / i_a;
+    const impulse_velocity = normal.multiply(-impulse / m_a);
+    const impulse_angular_velocity = r_ap.cross(normal.multiply(-impulse)) / i_a;
 
     const o_a_updated_with_impulse_velocity = o_a.copy<PhysicalObject>({
         velocity: o_a.velocity.add_vector(impulse_velocity),
@@ -282,7 +274,7 @@ export default class PhysicalSetup extends GameElement {
       else return true;
     }
 
-    const multiplier = Utils.binary_search(0, 10, 5, can);
+    const multiplier = Utils.binary_search_yn(0, 10, 10, can);
     const amplifier = 1;
     const o_a_updated = o_a.copy<PhysicalObject>({ velocity: o_a.velocity.add_vector(contact_velocity.multiply(multiplier * amplifier) )});
 
@@ -322,7 +314,7 @@ export default class PhysicalSetup extends GameElement {
       else return true;
     }
 
-    const multiplier = Utils.binary_search(0, 10, 5, can);
+    const multiplier = Utils.binary_search_yn(0, 50, 10, can);
     const amplifier = 1;
     const o_a_updated = o_a.copy<PhysicalObject>({ velocity: o_a.velocity.add_vector(contact_velocity_a.multiply(multiplier * amplifier) )});
     const o_b_updated = o_b.copy<PhysicalObject>({ velocity: o_b.velocity.add_vector(contact_velocity_b.multiply(multiplier * amplifier) )});
@@ -359,16 +351,32 @@ export default class PhysicalSetup extends GameElement {
              .toList();
   }
 
-  private _calculate_collisions(o_a_id: number, o_b_id: number, time_unit: number): Collision {
+  private _collide_objects_with_time_multiplier(o_a_id: number, o_b_id: number, time_unit: number, time_multiplier: number): Collision {
     const o_a = this.objects.get(o_a_id);
     const o_b = this.objects.get(o_b_id);
 
-    const o_a_delta = o_a.calculate_delta(time_unit);
-    const o_b_delta = o_b.calculate_delta(time_unit);
+    const o_a_delta = o_a.calculate_delta(time_unit * time_multiplier);
+    const o_b_delta = o_b.calculate_delta(time_unit * time_multiplier);
 
     const o_a_translated = o_a.move(o_a_delta.position).rotate(o_a_delta.angle);
     const o_b_translated = o_b.move(o_b_delta.position).rotate(o_b_delta.angle);
 
     return o_a_translated.calculate_collision(o_b_translated);
+  }
+
+  private _calculate_collisions(o_a_id: number, o_b_id: number, time_unit: number): Collision {
+    const collision_pre_multiplier = this._collide_objects_with_time_multiplier(o_a_id, o_b_id, time_unit, 1);
+    if (!collision_pre_multiplier.collided()) return collision_pre_multiplier;
+
+    const can = (v: number) => {
+      const collision = this._collide_objects_with_time_multiplier(o_a_id, o_b_id, time_unit, v);
+      return collision.collided();
+    }
+
+    const multiplier = Utils.binary_search_ny(0, 1, 5, can);
+    // console.log("multiplier: " + multiplier);
+    const collision_post_multiplier = this._collide_objects_with_time_multiplier(o_a_id, o_b_id, time_unit, multiplier);
+
+    return collision_post_multiplier;
   }
 }

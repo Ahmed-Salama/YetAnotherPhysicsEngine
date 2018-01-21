@@ -34,7 +34,7 @@ export default class Constants {
   public static readonly dodge_timer_duration = 70;
   public static readonly time_scale = 2.6;
   public static readonly time_step = 1000 / Constants.frames_per_second;
-  public static readonly tire_elasticity = 0.2;
+  public static readonly tire_elasticity = 0;
 
   public static debugging = false;
   public static paused = false;

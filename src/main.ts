@@ -2,6 +2,9 @@ import Utils from './utils';
 import Vector2D from './vector2d'
 import Constants from './constants'
 import PhysicalSetup from './physical_setup'
+import GameLevel1 from './game_level_1';
+import GameLevel2 from './game_level_2';
+import GameLevelManager from './game_level_manager';
 
 $(document).ready(() => {
   const body = $('body');
@@ -23,20 +26,20 @@ $(document).ready(() => {
   const $time = Rx.Observable.interval(Constants.time_step)
     .timeInterval();
 
-  $time.scan((physical_setup, time_unit) => {
+  $time.scan((game_level_manager, time_unit) => {
       if (Constants.paused) {
-        return physical_setup;
+        return game_level_manager;
       } else {
-        return physical_setup.updated(Constants.time_step * Constants.time_scale);
+        return game_level_manager.updated(Constants.time_step * Constants.time_scale);
       }
-    }, new PhysicalSetup(true))
-    .subscribe((physical_setup: PhysicalSetup) => {
+    }, new GameLevelManager(true, new GameLevel2(true)))
+    .subscribe((game_level_manager: GameLevelManager) => {
       ctx.save();
       ctx.fillStyle = Constants.clear_rect_color;
       ctx.fillRect(0, 0, Constants.canvas_size, Constants.canvas_size);
       ctx.restore();
 
-      physical_setup.draw(ctx);
+      game_level_manager.draw(ctx);
     });
 });
 

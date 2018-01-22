@@ -81,9 +81,18 @@ export class Line extends Entity {
 
   public point_distance(p: Vector2D): number {
     const start_p = this.start_position.to(p);
+    const end_p = this.end_position.to(p);
     const line = this.start_position.to(this.end_position);
+
     const cross = line.cross(start_p);
     const line_length = line.length();
+
+    var dot1 = line.dot(end_p);
+    if (dot1 > 0) return end_p.length();
+
+    var dot2 = line.reverse().dot(start_p);
+    if (dot2 > 0) return start_p.length();
+    
     return Math.abs(cross / line_length);
   }
 

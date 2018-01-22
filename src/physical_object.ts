@@ -121,24 +121,13 @@ export default class PhysicalObject extends GameElement {
     return this.position.add_vector(vector.rotate(this.angle));
   }
 
-  protected _camera_translate(vector: Vector2D, camera_position: Vector2D): Vector2D {
-    const after_position_and_rotation = this._translate(vector);
-    const final_translation = after_position_and_rotation.add_vector(
-          new Vector2D(
-            - camera_position.x +
-            Constants.canvas_size / (2 * Constants.drawing_scale),
-            0));
-
-    return final_translation;
-  }
-
   public _stroke_line(start: Vector2D, end: Vector2D, color: string,
-                         ctx: CanvasRenderingContext2D, camera_position: Vector2D) {
+                         ctx: CanvasRenderingContext2D) {
     ctx.save();
     ctx.strokeStyle = color;
     ctx.beginPath();
-    const to_draw_start_position = this._camera_translate(start, camera_position);
-    const to_draw_end_position = this._camera_translate(end, camera_position);
+    const to_draw_start_position = this._translate(start);
+    const to_draw_end_position = this._translate(end);
     ctx.moveTo(Constants.drawing_scale * to_draw_start_position.x,
                Constants.drawing_scale * to_draw_start_position.y);
     ctx.lineTo(Constants.drawing_scale * to_draw_end_position.x,
@@ -148,10 +137,10 @@ export default class PhysicalObject extends GameElement {
   }
 
   protected _draw_circle(center: Vector2D, f: number, radius: number, color: string,
-                         ctx: CanvasRenderingContext2D, camera_position: Vector2D) {
+                         ctx: CanvasRenderingContext2D) {
     ctx.save();
     ctx.fillStyle = color;
-    let to_draw_center = this._camera_translate(center.multiply(1.0/f), camera_position);
+    let to_draw_center = this._translate(center.multiply(1.0/f));
     ctx.beginPath();
     ctx.arc(Constants.drawing_scale * to_draw_center.x, Constants.drawing_scale *
             to_draw_center.y, radius, 0, 2 * Math.PI);
@@ -159,12 +148,12 @@ export default class PhysicalObject extends GameElement {
     ctx.restore();
   }
 
-  public draw(ctx: CanvasRenderingContext2D, camera_position: Vector2D) {
+  public draw(ctx: CanvasRenderingContext2D) {
     ctx.save();
     
     const self = this;
     this.lines.forEach(line => {
-      self._stroke_line(line.start_position, line.end_position, "black", ctx, camera_position);
+      self._stroke_line(line.start_position, line.end_position, "black", ctx);
 
       // normal vector calculations
       const start_to_end_vector = line.start_position.to(line.end_position);
@@ -174,23 +163,19 @@ export default class PhysicalObject extends GameElement {
       const normal_end_position = line.start_position
                                       .add_vector(mid_point).add_vector(line.normal);
       self._stroke_line(normal_start_position, normal_end_position, "black",
-                        ctx, camera_position);
+                        ctx);
     });
 
     if (!this.is_ground) {
-      this._draw_circle(this.center_of_mass, 1, 2, "black", ctx, camera_position);
+      this._draw_circle(this.center_of_mass, 1, 2, "black", ctx);
     }
 
     const _stroke_line_no_angle = (start: Vector2D, end: Vector2D, color: string) => {
       ctx.save();
       ctx.strokeStyle = color;
       ctx.beginPath();
-      const camera = new Vector2D(
-                      - camera_position.x +
-                      Constants.canvas_size / (2 * Constants.drawing_scale),
-                      0);
-      const to_draw_start_position = self.position.add_vector(start).add_vector(camera);
-      const to_draw_end_position = self.position.add_vector(end).add_vector(camera);
+      const to_draw_start_position = self.position.add_vector(start);
+      const to_draw_end_position = self.position.add_vector(end);
       ctx.moveTo(Constants.drawing_scale * to_draw_start_position.x,
                   Constants.drawing_scale * to_draw_start_position.y);
       ctx.lineTo(Constants.drawing_scale * to_draw_end_position.x,

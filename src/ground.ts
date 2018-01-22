@@ -43,17 +43,17 @@ export default class Ground extends PhysicalObject {
     return physical_setup;
   }
 
-  public draw(ctx: CanvasRenderingContext2D, camera_position: Vector2D) {
+  public draw(ctx: CanvasRenderingContext2D) {
     const f = 1;
     const self = this;
 
     ctx.save();
     const line_to = (x: number, y: number) => {
-      const vector = this._camera_translate(new Vector2D(x / f, y / f), camera_position);
+      const vector = this._translate(new Vector2D(x / f, y / f));
       return ctx.lineTo(Constants.drawing_scale * vector.x, Constants.drawing_scale * vector.y);
     }
     const move_to = (x: number, y: number) => {
-      const vector = this._camera_translate(new Vector2D(x / f, y / f), camera_position);
+      const vector = this._translate(new Vector2D(x / f, y / f));
       return ctx.moveTo(Constants.drawing_scale * vector.x, Constants.drawing_scale * vector.y);
     }
     ctx.beginPath();

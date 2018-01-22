@@ -28,8 +28,6 @@ export default class Car extends PhysicalObject {
   public direction_y: number;
   public touching_ground: boolean;
   public touching_ground_normals: Immutable.List<Vector2D>;
-  public anchoring_ground: boolean;
-  public anchoring_ground_normals: Immutable.List<Vector2D>;
 
   constructor(initialize: boolean) {
       super(initialize);
@@ -193,42 +191,14 @@ export default class Car extends PhysicalObject {
     return grounds.flatMap(ground => get_ground_lines_touching_tires(this.tires, ground)).toList();
   }
 
-  private _get_ground_lines_touching_single_tire(grounds: Immutable.List<PhysicalObject>): Immutable.List<Line> {
-    const TIRE_RADIUS = 2;
-    const self = this;
-
-    const get_ground_lines_touching_tires = (tires: Immutable.List<Vector2D>, ground: PhysicalObject): Immutable.List<Line> => {
-      return ground.lines.filter(ground_line => {
-        return tires.some(tire => {
-          const projected_tire = tire.rotate(self.angle).add_vector(self.position);
-          return ground_line.point_distance(projected_tire) < TIRE_RADIUS;
-        });
-      }).toList();
-    }
-
-    return grounds.flatMap(ground => get_ground_lines_touching_tires(this.tires, ground)).toList();
-  }
-
   private _apply_ground_touches(collided_objects: Immutable.List<PhysicalObject>): PhysicalObject {
     const collided_grounds = collided_objects.filter(o => o.is_ground).toList();
     const ground_lines_touching_both_tires = this._get_ground_lines_touching_both_tires(collided_grounds);
-    const ground_lines_touching_single_tires = this._get_ground_lines_touching_single_tire(collided_grounds);
 
     return this.copy({
       touching_ground: ground_lines_touching_both_tires.size > 0,
       touching_ground_normals: ground_lines_touching_both_tires.map(l => l.normal).toList(),
-      anchoring_ground: ground_lines_touching_single_tires.size > 0,
-      anchoring_ground_normals: ground_lines_touching_single_tires.map(l => l.normal).toList()
     });
-  }
-
-  private _apply_anchoring_ground_caps(): PhysicalObject {
-    if (this.anchoring_ground) {
-      const new_velocity = this.anchoring_ground_normals.reduce((r_v, n) => r_v.subtract(n.multiply(Math.max(0, r_v.dot(n)))), this.velocity);
-      return this.copy({ velocity: new_velocity });
-    } else {
-      return this;
-    }
   }
 
   private _apply_jump_reset(): PhysicalObject {
@@ -396,32 +366,31 @@ export default class Car extends PhysicalObject {
     const pipeline = new Pipeline<PhysicalObject>(Immutable.List([
       new PipelineTransformer(this._cancel_vertical_velocity_if_dodging, []),
       new PipelineTransformer(this._cancel_angular_velocity_if_touching_ground, []),
-      // new PipelineTransformer(this._apply_anchoring_ground_caps, []),
     ]));
 
     return pipeline.execute(this) as Car;
   }
 
-  public draw(ctx: CanvasRenderingContext2D, camera_position: Vector2D) {
+  public draw(ctx: CanvasRenderingContext2D) {
     const f = 3;
     const self = this;
 
     ctx.save();
     if (Constants.debugging) {
       ctx.strokeStyle = "red";
-      super.draw(ctx, camera_position);
+      super.draw(ctx);
 
-      this._draw_circle(this.forward, 1, 6, "violet", ctx, camera_position);
-      this._draw_circle(this.jumper, 1, 6, this.jump_state == "station" ? "yellow" : "orange", ctx, camera_position);
+      this._draw_circle(this.forward, 1, 6, "violet", ctx);
+      this._draw_circle(this.jumper, 1, 6, this.jump_state == "station" ? "yellow" : "orange", ctx);
 
-      this.tires.forEach(tire => self._draw_circle(tire, 1, 2, "red", ctx, camera_position));
+      this.tires.forEach(tire => self._draw_circle(tire, 1, 2, "red", ctx));
     } else {
       const line_to = (x: number, y: number) => {
-        const vector = this._camera_translate(new Vector2D(x / f, y / f), camera_position);
+        const vector = this._translate(new Vector2D(x / f, y / f));
         return ctx.lineTo(Constants.drawing_scale * vector.x, Constants.drawing_scale * vector.y);
      }
       const move_to = (x: number, y: number) => {
-        const vector = this._camera_translate(new Vector2D(x / f, y / f), camera_position);
+        const vector = this._translate(new Vector2D(x / f, y / f));
         return ctx.moveTo(Constants.drawing_scale * vector.x, Constants.drawing_scale * vector.y);
       }
       const draw_polygon = (points: number[][], color: string) => {
@@ -467,9 +436,9 @@ export default class Car extends PhysicalObject {
       draw_polygon([[-4, -6], [-10, -5], [-14, -4], [-5, -4]], "#922B21");
 
       const draw_tire = (x: number, y: number) => {
-        this._draw_circle(new Vector2D(x, y), f, 11, "gray", ctx, camera_position);
-        this._draw_circle(new Vector2D(x, y), f, 7, "lightgray", ctx, camera_position);
-        this._draw_circle(new Vector2D(x, y), f, 5, "black", ctx, camera_position);
+        this._draw_circle(new Vector2D(x, y), f, 11, "gray", ctx);
+        this._draw_circle(new Vector2D(x, y), f, 7, "lightgray", ctx);
+        this._draw_circle(new Vector2D(x, y), f, 5, "black", ctx);
       }
       
       draw_tire(-12 * this.direction_x, 8 * this.direction_y);

@@ -8,14 +8,18 @@ import GameElement from './game_element';
 export default class Ball extends PhysicalObject {
   public radius: number;
 
-  constructor(initialize: boolean) {
-    super(initialize);
+  constructor(initialize: boolean, position: Vector2D) {
+    super(initialize, position);
+  }
+
+  protected initialize(position: Vector2D) {
+    super.initialize();
+    this.position = position;
   }
 
   protected _define_attributes() {
     super._define_attributes();
     this.radius = 10;
-    this.position = new Vector2D(60, 40);
     this.velocity = new Vector2D(5, 0);
     this.mass = 40;
     this.name = "ball";
@@ -43,30 +47,30 @@ export default class Ball extends PhysicalObject {
   }
 
   public updated_before_collision(time_unit: number, other_objects: Immutable.List<PhysicalObject>): PhysicalObject {
-    return this._updated_with_physics(time_unit) as Ball;
+    return this._updated_with_physics(time_unit);
   }
 
   public updated_with_collisions(collided_objects: Immutable.List<PhysicalObject>): Ball {
     return this;
   }
 
-  public draw(ctx: CanvasRenderingContext2D, camera_position: Vector2D) {
+  public draw(ctx: CanvasRenderingContext2D) {
     const self = this;
     ctx.save();
     if (Constants.debugging) {
       ctx.strokeStyle = "blue";
-      super.draw(ctx, camera_position);
+      super.draw(ctx);
     } else {
       this._draw_circle(Vector2D.empty, 1, Constants.drawing_scale * this.radius,
-                        "#21618C", ctx, camera_position);
+                        "#21618C", ctx);
       this._draw_circle(Vector2D.empty, 1, Constants.drawing_scale * 0.9 * this.radius,
-                        "#3498DB", ctx, camera_position);
+                        "#3498DB", ctx);
       this._draw_circle(Vector2D.empty, 1, Constants.drawing_scale * 0.8 * this.radius,
-                        "#5DADE2", ctx, camera_position);
+                        "#5DADE2", ctx);
       this._draw_circle(Vector2D.empty, 1, Constants.drawing_scale * 0.6 * this.radius,
-                        "#85C1E9", ctx, camera_position);
+                        "#85C1E9", ctx);
       this._draw_circle(Vector2D.empty, 1, Constants.drawing_scale * 0.2 * this.radius,
-                        "#AED6F1", ctx, camera_position);
+                        "#AED6F1", ctx);
 
 
       const fixed_shape_radius = 9;
@@ -74,7 +78,7 @@ export default class Ball extends PhysicalObject {
       fixed_shape_angles.forEach(angle => {
         const center = new Vector2D(fixed_shape_radius * Math.cos(angle),
                                     fixed_shape_radius * Math.sin(angle));
-        self._draw_circle(center, 1, 10, "#2C3E50", ctx, camera_position);
+        self._draw_circle(center, 1, 8, "#2C3E50", ctx);
       });
     }
     ctx.restore();

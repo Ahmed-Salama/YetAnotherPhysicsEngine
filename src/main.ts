@@ -1,5 +1,3 @@
-import Utils from './utils';
-import Vector2D from './vector2d'
 import Constants from './constants'
 import PhysicalSetup from './physical_setup'
 import GameLevel1 from './game_level_1';

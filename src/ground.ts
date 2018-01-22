@@ -18,8 +18,6 @@ export default class Ground extends PhysicalObject {
 
   protected _define_attributes() {
     super._define_attributes();
-    this.name = "ground";
-    this.is_ground = true;
     this.position = Vector2D.empty;
     this.mass = Infinity;
     this.moment_of_inertia = Infinity;
@@ -45,7 +43,6 @@ export default class Ground extends PhysicalObject {
 
   public draw(ctx: CanvasRenderingContext2D) {
     const f = 1;
-    const self = this;
 
     ctx.save();
     const line_to = (x: number, y: number) => {

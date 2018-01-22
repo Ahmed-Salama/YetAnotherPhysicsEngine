@@ -1,6 +1,5 @@
 export default class Entity {
   public id: number;
-  public name: string;
 
   constructor(initialize = false, ...rest: any[]) {
     this.id = Math.random();

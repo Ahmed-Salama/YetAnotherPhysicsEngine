@@ -1,12 +1,10 @@
 import Constants from './constants'
-import PhysicalSetup from './physical_setup'
 import {Line} from './line'
 import Vector2D from './vector2d'
 import PhysicalObject from './physical_object';
-import GameElement from './game_element';
 import Pipeline from './pipeline';
 import PipelineTransformer from './pipeline_transformer';
-import { Collision } from './collision';
+import Ground from './ground';
 
 export default class Car extends PhysicalObject {
   public static readonly NITRO_STRENGTH = 20;
@@ -49,7 +47,6 @@ export default class Car extends PhysicalObject {
     this.flip_y_state = "idle";
     this.direction_x = 1;
     this.direction_y = 1;
-    this.name = "car";
     this.touching_ground = false;
   }
 
@@ -192,7 +189,7 @@ export default class Car extends PhysicalObject {
   }
 
   private _apply_ground_touches(collided_objects: Immutable.List<PhysicalObject>): PhysicalObject {
-    const collided_grounds = collided_objects.filter(o => o.is_ground).toList();
+    const collided_grounds = collided_objects.filter(o => o instanceof Ground).toList();
     const ground_lines_touching_both_tires = this._get_ground_lines_touching_both_tires(collided_grounds);
 
     return this.copy({

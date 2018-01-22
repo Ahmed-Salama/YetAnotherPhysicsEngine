@@ -1,17 +1,15 @@
 import Ball from './ball'
 import Camera from './camera'
 import Car from './car'
-import Entity from './entity'
 import GameElement from './game_element'
 import Ground from './ground'
 import PhysicalObject from './physical_object'
-import Vector2D from './vector2d';
-import {Collision, CollisionResult} from './collision'
-import {Intersection, Line} from './line'
-import Constants from './constants'
+import {Collision} from './collision'
 import Utils from './utils';
 import Pipeline from './pipeline';
 import PipelineTransformer from './pipeline_transformer';
+import Vector2D from './vector2d';
+import Constants from './constants';
 
 export default class PhysicalSetup extends GameElement {
   public objects: Immutable.Map<number, PhysicalObject>;
@@ -116,7 +114,7 @@ export default class PhysicalSetup extends GameElement {
     // Reference: https://www.myphysicslab.com/engine2D/collision-en.html#collision_physics
     const construct_collision_pipeline = () => {
       const o_b = this.objects.get(o_b_id);
-      if (o_b.is_ground) {
+      if (o_b instanceof Ground) {
         return new Pipeline<PhysicalSetup>(Immutable.List([
           new PipelineTransformer(this._apply_ground_impulse_velocity, [o_a_id, collision, time_unit]),
           new PipelineTransformer(this._apply_ground_contact_velocity, [o_a_id, o_b_id, collision, time_unit]),
@@ -234,9 +232,6 @@ export default class PhysicalSetup extends GameElement {
     const o_a = this.objects.get(o_a_id);
     const ground = this.objects.get(ground_id);
 
-    const m_a = o_a.mass;
-    const c_a = o_a.position;
-
     const intersection = collision.intersections.first();
     const intersection_normal = intersection.other_line.normal;
     const contact_velocity = intersection_normal;
@@ -330,17 +325,16 @@ export default class PhysicalSetup extends GameElement {
 
   public filter_objects(predicate: (_: PhysicalObject) => boolean): Immutable.List<PhysicalObject> {
     return this.objects
-            .entrySeq()
-            .filter(([k, v]) => predicate(v))
-            .map(([k, v]) => v)
-            .toList();
+               .entrySeq()
+               .filter(([k, v]) => predicate(v))
+               .map(([k, v]) => v)
+               .toList();
   } 
 
   private _get_all_objects_except_ground() {
-    return this
-             .filter_objects(o => !o.is_ground)
-             .map(o => o.id)
-             .toList();
+    return this.filter_objects(o => !(o instanceof Ground))
+               .map(o => o.id)
+               .toList();
   }
 
   private _collide_objects_with_time_multiplier(o_a_id: number, o_b_id: number, time_unit: number, time_multiplier: number): Collision {

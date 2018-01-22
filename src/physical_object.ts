@@ -1,7 +1,6 @@
 ///<reference path='../node_modules/immutable/dist/immutable.d.ts'/>
-import {Collision, CollisionResult} from './collision'
+import {Collision} from './collision'
 import Constants from './constants'
-import Entity from './entity'
 import Vector2D from './vector2d'
 import {Intersection, Line} from './line'
 import GameElement from './game_element';
@@ -16,7 +15,6 @@ export default class PhysicalObject extends GameElement {
   public mass: number;
   public moment_of_inertia: number;
   public center_of_mass: Vector2D;
-  public is_ground: boolean;
   public lines: Immutable.List<Line>;
 
 
@@ -166,9 +164,7 @@ export default class PhysicalObject extends GameElement {
                         ctx);
     });
 
-    if (!this.is_ground) {
-      this._draw_circle(this.center_of_mass, 1, 2, "black", ctx);
-    }
+    this._draw_circle(this.center_of_mass, 1, 2, "black", ctx);
 
     const _stroke_line_no_angle = (start: Vector2D, end: Vector2D, color: string) => {
       ctx.save();

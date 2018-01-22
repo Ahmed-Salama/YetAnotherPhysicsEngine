@@ -1,9 +1,7 @@
 import Constants from './constants'
-import PhysicalSetup from './physical_setup'
 import Vector2D from './vector2d'
 import {Line} from './line'
 import PhysicalObject from './physical_object';
-import GameElement from './game_element';
 
 export default class Ball extends PhysicalObject {
   public radius: number;
@@ -20,9 +18,8 @@ export default class Ball extends PhysicalObject {
   protected _define_attributes() {
     super._define_attributes();
     this.radius = 10;
-    this.velocity = new Vector2D(5, 0);
-    this.mass = 40;
-    this.name = "ball";
+    this.velocity = new Vector2D(0, 0);
+    this.mass = 20;
   }
 
   protected _build_lines() {

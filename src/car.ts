@@ -26,6 +26,7 @@ export default class Car extends PhysicalObject {
   public direction_y: number;
   public touching_ground: boolean;
   public touching_ground_normals: Immutable.List<Vector2D>;
+  public tire_angle: number;
 
   constructor(initialize: boolean) {
       super(initialize);
@@ -48,6 +49,7 @@ export default class Car extends PhysicalObject {
     this.direction_x = 1;
     this.direction_y = 1;
     this.touching_ground = false;
+    this.tire_angle = 0;
   }
 
   protected _build_lines() {
@@ -322,6 +324,14 @@ export default class Car extends PhysicalObject {
     });
   }
 
+  private _update_tire_angle(time_unit: number): Car {
+    if (this.touching_ground) {
+      return this.copy({ tire_angle: this.tire_angle - this.forward.normalize().multiply(this.velocity.dot(this.forward.normalize())).cross(this.touching_ground_normals.first()) * time_unit * 1.0 / 1000 });
+    } else {
+      return this;
+    }
+  }
+
   public updated_before_collision(time_unit: number, other_objects: Immutable.List<PhysicalObject>): Car {
     const pipeline = new Pipeline<PhysicalObject>(Immutable.List([
       new PipelineTransformer(this._apply_flip_x_input, []),
@@ -333,6 +343,7 @@ export default class Car extends PhysicalObject {
       new PipelineTransformer(this._apply_jump_input, [time_unit]),
       new PipelineTransformer(this._apply_dodge_input, [time_unit]),
       new PipelineTransformer(this._apply_rotation_input, [time_unit]),
+      new PipelineTransformer(this._update_tire_angle, [time_unit]),
       new PipelineTransformer(this._updated_with_physics, [time_unit])
     ]));
 
@@ -391,14 +402,16 @@ export default class Car extends PhysicalObject {
         return ctx.moveTo(Constants.drawing_scale * vector.x, Constants.drawing_scale * vector.y);
       }
       const draw_polygon = (points: number[][], color: string) => {
-
         ctx.fillStyle = color;
+        ctx.strokeStyle = "black";
+        ctx.lineWidth = 0.5;
         ctx.beginPath();
         move_to(points[0][0] * this.direction_x, points[0][1] * this.direction_y);
         for (var i = 1; i < points.length; i++) {
           line_to(points[i][0] * this.direction_x, points[i][1] * this.direction_y);
         }
         ctx.fill();
+        ctx.stroke();
       }
 
       // Nitro
@@ -433,9 +446,15 @@ export default class Car extends PhysicalObject {
       draw_polygon([[-4, -6], [-10, -5], [-14, -4], [-5, -4]], "#922B21");
 
       const draw_tire = (x: number, y: number) => {
+        this._draw_circle(new Vector2D(x, y), f, 11.5, "black", ctx);
         this._draw_circle(new Vector2D(x, y), f, 11, "gray", ctx);
         this._draw_circle(new Vector2D(x, y), f, 7, "lightgray", ctx);
         this._draw_circle(new Vector2D(x, y), f, 5, "black", ctx);
+
+        // const tire_vectors = Immutable.List([[-1, -3], [1, -3], [1, 3], [-1, 3]]).map(p => new Vector2D(p[0], p[1]).rotate(self.tire_angle));
+        
+        // draw_polygon(tire_vectors.map(v => [x + v.x, y + v.y]).toArray(), "lightgray");
+        // draw_polygon(tire_vectors.map(v => [x - v.y, y + v.x]).toArray(), "lightgray");
       }
       
       draw_tire(-12 * this.direction_x, 8 * this.direction_y);

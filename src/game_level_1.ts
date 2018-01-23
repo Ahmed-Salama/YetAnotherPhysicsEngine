@@ -4,24 +4,22 @@ import Ground from "./ground";
 import Ball from "./ball";
 import Camera from "./camera";
 import Vector2D from "./vector2d";
+import Obstacle from "./obstacle";
+import Goal from "./goal";
 
 export default class GameLevel1 extends PhysicalSetup {
     protected initialize() {
         super.initialize();
 
         const my_car = new Car(true);
-        const ground_top = new Ground(true, [[0, 20], [200, 20], [200, 10], [0, 10]]);
-        const ground_down = new Ground(true, [[0, 100], [200, 100], [200, 90], [0, 90]]);
-        const ground_left = new Ground(true, [[0, 100], [10, 100], [10, 10], [0, 10]]);
-        const ground_right = new Ground(true, [[200, 100], [200, 10], [190, 10], [190, 100]]);
+        const ground_down = new Ground(true, new Vector2D(0, 0), [[0, 100], [200, 100], [200, 90], [0, 90]]);
+        const goal = new Goal(true, new Vector2D(140, 80), [[0, 10], [10, 10], [10, 0], [0, 0]]);
         const ball = new Ball(true, new Vector2D(60, 40));
 
         this.objects = Immutable.Map([
             [my_car.id, my_car],
-            [ground_top.id, ground_top],
             [ground_down.id, ground_down],
-            [ground_left.id, ground_left],
-            [ground_right.id, ground_right],
+            [goal.id, goal],
             [ball.id, ball],
         ]);
 

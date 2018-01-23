@@ -17,7 +17,6 @@ export default class PhysicalObject extends GameElement {
   public center_of_mass: Vector2D;
   public lines: Immutable.List<Line>;
 
-
   constructor(initialize: boolean, ...rest: any[]) {
     super(initialize, ...rest);
   }

@@ -1,4 +1,3 @@
-// const patter_canvas = createPinstripeCanvas();
 
 import Constants from './constants'
 
@@ -9,10 +8,10 @@ export default class Utils {
     const pctx = patternCanvas.getContext('2d', { antialias: true });
     const colour = Constants.ground_pattern_color;
 
-    const CANVAS_SIDE_LENGTH = 15;
+    const CANVAS_SIDE_LENGTH = 30;
     const WIDTH = CANVAS_SIDE_LENGTH;
     const HEIGHT = CANVAS_SIDE_LENGTH;
-    const DIVISIONS = 4;
+    const DIVISIONS = 2.2;
 
     patternCanvas.width = WIDTH;
     patternCanvas.height = HEIGHT;

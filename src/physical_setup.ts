@@ -89,8 +89,11 @@ export default class PhysicalSetup extends GameElement {
                     reduced_physical_setup: this as PhysicalSetup });
 
       const collided_objects = collided_objects_ids.map(id => after_collision_physical_setup.objects.get(id)).toList();
+
       const after_collision_object = after_collision_physical_setup.objects.get(object_id);
       const next_state_after_collision_object = after_collision_object.updated_with_collisions(collided_objects);
+
+      const next_state_after_updating_other_collided = collided_objects.reduce((r_ps, o) => r_ps.replace_element(o.updated_with_collisions(Immutable.List([next_state_after_collision_object]))), after_collision_physical_setup);
 
       // This is the place where object delta (in position and angle) is committed.
       const delta = next_state_after_collision_object.calculate_delta(time_unit);
@@ -98,7 +101,7 @@ export default class PhysicalSetup extends GameElement {
                                           .move(delta.position)
                                           .rotate(delta.angle);
 
-      return after_collision_physical_setup.replace_element(updated_object_with_delta);
+      return next_state_after_updating_other_collided.replace_element(updated_object_with_delta);
   }
 
   public _collide_object_with_another(o_a_id: number, o_b_id: number, time_unit: number) {
@@ -301,20 +304,20 @@ export default class PhysicalSetup extends GameElement {
     const self = this;
 
     ctx.save();
+
+    const average_frame_duration = this.frame_calculations.reduce((s, x) => s + x, 0) / this.frame_calculations.size;
+    ctx.strokeText(average_frame_duration.toPrecision(1), 10, 10);    
+    
     const camera_coordinates = self.camera.get_coordinates(self);
     const camera_offset = 
       new Vector2D(
-        - camera_coordinates.x +
-        Constants.canvas_size / (2 * Constants.drawing_scale),
-        0);
-    ctx.translate(Constants.drawing_scale * camera_offset.x, camera_offset.y);
+        Constants.drawing_scale * camera_coordinates.x,
+        Constants.drawing_scale * camera_coordinates.y);
+    ctx.translate(-camera_offset.x, -camera_offset.y - Constants.canvas_size / 2);
 
     this.objects
         .valueSeq()
         .forEach((o) => o.draw(ctx));
-
-    const average_frame_duration = this.frame_calculations.reduce((s, x) => s + x, 0) / this.frame_calculations.size;
-    ctx.strokeText(average_frame_duration.toPrecision(1), 10, 10);    
 
     ctx.restore();
   }

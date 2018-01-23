@@ -90,18 +90,18 @@ export default class PhysicalSetup extends GameElement {
 
       const collided_objects = collided_objects_ids.map(id => after_collision_physical_setup.objects.get(id)).toList();
 
-      const after_collision_object = after_collision_physical_setup.objects.get(object_id);
-      const next_state_after_collision_object = after_collision_object.updated_with_collisions(collided_objects);
+      const object_after_collision = after_collision_physical_setup.objects.get(object_id);
+      const object_after_collision_state_update = object_after_collision.updated_with_collisions(collided_objects);
 
-      const next_state_after_updating_other_collided = collided_objects.reduce((r_ps, o) => r_ps.replace_element(o.updated_with_collisions(Immutable.List([next_state_after_collision_object]))), after_collision_physical_setup);
+      const physical_setup_after_collision_state_updates = collided_objects.reduce((r_ps, o) => r_ps.replace_element(o.updated_with_collisions(Immutable.List([object_after_collision_state_update]))), after_collision_physical_setup);
 
       // This is the place where object delta (in position and angle) is committed.
-      const delta = next_state_after_collision_object.calculate_delta(time_unit);
-      const updated_object_with_delta = next_state_after_collision_object
+      const delta = object_after_collision_state_update.calculate_delta(time_unit);
+      const updated_object_with_delta = object_after_collision_state_update
                                           .move(delta.position)
                                           .rotate(delta.angle);
 
-      return next_state_after_updating_other_collided.replace_element(updated_object_with_delta);
+      return physical_setup_after_collision_state_updates.replace_element(updated_object_with_delta);
   }
 
   public _collide_object_with_another(o_a_id: number, o_b_id: number, time_unit: number) {
@@ -313,7 +313,7 @@ export default class PhysicalSetup extends GameElement {
       new Vector2D(
         Constants.drawing_scale * camera_coordinates.x,
         Constants.drawing_scale * camera_coordinates.y);
-    ctx.translate(-camera_offset.x, -camera_offset.y - Constants.canvas_size / 2);
+    ctx.translate(-camera_offset.x, -camera_offset.y - 0.42 * Constants.canvas_size);
 
     this.objects
         .valueSeq()

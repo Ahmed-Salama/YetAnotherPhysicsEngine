@@ -3,6 +3,8 @@ import PhysicalSetup from './physical_setup'
 import GameLevel1 from './game_level_1';
 import GameLevel2 from './game_level_2';
 import GameLevelManager from './game_level_manager';
+import GameLevel3 from './game_level_3';
+import GameLevel4 from './game_level_4';
 
 $(document).ready(() => {
   const body = $('body');
@@ -30,7 +32,7 @@ $(document).ready(() => {
       } else {
         return game_level_manager.updated(Constants.time_step * Constants.time_scale);
       }
-    }, new GameLevelManager(true, new GameLevel2(true)))
+    }, new GameLevelManager(true, new GameLevel4(true)))
     .subscribe((game_level_manager: GameLevelManager) => {
       ctx.save();
       ctx.fillStyle = Constants.clear_rect_color;

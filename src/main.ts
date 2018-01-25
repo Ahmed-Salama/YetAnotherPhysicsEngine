@@ -5,6 +5,8 @@ import GameLevel2 from './game_level_2';
 import GameLevelManager from './game_level_manager';
 import GameLevel3 from './game_level_3';
 import GameLevel4 from './game_level_4';
+import GameLevel5 from './game_level_5';
+import GameManager from './game_manager';
 
 $(document).ready(() => {
   const body = $('body');
@@ -26,20 +28,20 @@ $(document).ready(() => {
   const $time = Rx.Observable.interval(Constants.time_step)
     .timeInterval();
 
-  $time.scan((game_level_manager, time_unit) => {
+  $time.scan((game_manager) => {
       if (Constants.paused) {
-        return game_level_manager;
+        return game_manager;
       } else {
-        return game_level_manager.updated(Constants.time_step * Constants.time_scale);
+        return game_manager.updated(Constants.time_step * Constants.time_scale);
       }
-    }, new GameLevelManager(true, new GameLevel4(true)))
-    .subscribe((game_level_manager: GameLevelManager) => {
+    }, new GameManager(true))
+    .subscribe((game_manager: GameManager) => {
       ctx.save();
       ctx.fillStyle = Constants.clear_rect_color;
       ctx.fillRect(0, 0, Constants.canvas_size, Constants.canvas_size);
       ctx.restore();
 
-      game_level_manager.draw(ctx);
+      game_manager.draw(ctx);
     });
 });
 

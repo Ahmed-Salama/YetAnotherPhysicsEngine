@@ -14,7 +14,7 @@ export default class GameLevel3 extends PhysicalSetup {
         const my_car = new Car(true);
         const ground_down = new Ground(true, new Vector2D(0, 0), [[0, 100], [200, 100], [200, 90], [0, 90]]);
         const obstacle = new Obstacle(true, new Vector2D(100, 80), [[0, 10], [10, 10], [10, 0], [0, 0]]);
-        const goal = new Goal(true, new Vector2D(100, 40), [[0, 10], [10, 10], [10, 0], [0, 0]]);
+        const goal = new Goal(true, new Vector2D(160, 80), [[0, 10], [10, 10], [10, 0], [0, 0]]);
         const ball = new Ball(true, new Vector2D(60, 40));
 
         this.objects = Immutable.Map([

@@ -1,0 +1,55 @@
+import GameElement from "./game_element";
+import PhysicalSetup from "./physical_setup";
+import Car from "./car";
+import Constants from "./constants";
+import Obstacle from "./obstacle";
+import Goal from "./goal";
+import GameLevelManager from "./game_level_manager";
+import GameLevel1 from "./game_level_1";
+import GameLevel2 from "./game_level_2";
+import GameLevel3 from "./game_level_3";
+import GameLevel4 from "./game_level_4";
+import GameLevel5 from "./game_level_5";
+
+
+export default class GameManager extends GameElement {
+  public game_level_managers: Immutable.Map<number, GameLevelManager>;
+  public current_game_level_manager_id: number;
+  public finished: boolean;
+
+  constructor(initialize: boolean) {
+    super(initialize);
+  }
+
+  protected initialize() {
+    this.current_game_level_manager_id = 0;
+    this.game_level_managers = Immutable.Map<number, GameLevelManager>([
+      [0, new GameLevelManager(true, new GameLevel1(true))],
+      [1, new GameLevelManager(true, new GameLevel2(true))],
+      [2, new GameLevelManager(true, new GameLevel3(true))],
+      [3, new GameLevelManager(true, new GameLevel4(true))],
+      [4, new GameLevelManager(true, new GameLevel5(true))],
+    ]);
+  }
+
+  public updated(time_unit: number): GameManager {
+    if (this.finished) return this;
+
+    const current_game_level_manager = this.game_level_managers.get(this.current_game_level_manager_id);
+    const updated_current_game_level_manager = current_game_level_manager.updated(time_unit);
+
+    if (updated_current_game_level_manager.finished) {
+      if (this.current_game_level_manager_id + 1 >= this.game_level_managers.size) {
+        return this.copy({ finished: true });
+      } else {
+        return this.copy({ current_game_level_manager_id: this.current_game_level_manager_id + 1 });
+      }
+    } else {
+      return this.copy({ game_level_managers: this.game_level_managers.set(this.current_game_level_manager_id, updated_current_game_level_manager)});
+    }
+  }
+
+  public draw(ctx: CanvasRenderingContext2D) {
+    this.game_level_managers.get(this.current_game_level_manager_id).draw(ctx);
+  }
+}

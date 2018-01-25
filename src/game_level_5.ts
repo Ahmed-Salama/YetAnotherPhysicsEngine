@@ -7,20 +7,18 @@ import Vector2D from "./vector2d";
 import Obstacle from "./obstacle";
 import Goal from "./goal";
 
-export default class GameLevel2 extends PhysicalSetup {
+export default class GameLevel5 extends PhysicalSetup {
     protected initialize() {
         super.initialize();
 
         const my_car = new Car(true);
         const ground_down = new Ground(true, new Vector2D(0, 0), [[0, 100], [200, 100], [200, 90], [0, 90]]);
-        const obstacle = new Obstacle(true, new Vector2D(100, 80), [[0, 10], [10, 10], [10, 0], [0, 0]]);
-        const goal = new Goal(true, new Vector2D(100, 40), [[0, 10], [10, 10], [10, 0], [0, 0]]);
-        const ball = new Ball(true, new Vector2D(60, 40));
+        const goal = new Goal(true, new Vector2D(90, 0), [[0, 10], [10, 10], [10, 0], [0, 0]]);
+        const ball = new Ball(true, new Vector2D(50, 60));
 
         this.objects = Immutable.Map([
             [my_car.id, my_car],
             [ground_down.id, ground_down],
-            [obstacle.id, obstacle],
             [goal.id, goal],
             [ball.id, ball],
         ]);

@@ -4,6 +4,7 @@ import Car from "./car";
 import Constants from "./constants";
 import Obstacle from "./obstacle";
 import Goal from "./goal";
+import Ball from "./ball";
 
 
 export default class GameLevelManager extends GameElement {
@@ -25,20 +26,20 @@ export default class GameLevelManager extends GameElement {
 
     const updated_physical_setup = this.current_physical_setup.updated(time_unit);
 
-    const some_cars_below_sea_level = 
-      updated_physical_setup.filter_objects(o => o instanceof Car).some(car => car.position.y > 110);
+    const cars_or_balls_cars_below_sea_level = 
+      updated_physical_setup.filter_objects(o => o instanceof Car || o instanceof Ball).some(car => car.position.y > 110);
     
     const obstacles_hit =
       updated_physical_setup.filter_objects(o => o instanceof Obstacle).map(o => o as Obstacle).some(o => o.hit);
     
     const goals_hit =
-      updated_physical_setup.filter_objects(o => o instanceof Goal).map(o => o as Obstacle).some(o => o.hit);
+      updated_physical_setup.filter_objects(o => o instanceof Goal).map(o => o as Goal).some(o => o.hit);
 
     if (goals_hit) {
       return this.copy({ finished: true });
     }
 
-    const hit = some_cars_below_sea_level ||
+    const hit = cars_or_balls_cars_below_sea_level ||
       obstacles_hit;
     
     if (hit) {

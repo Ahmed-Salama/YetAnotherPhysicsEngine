@@ -1,4 +1,4 @@
-Live deployment of the game (Pushes to the repo gets reflected within a minute): http://guess.westus.cloudapp.azure.com:8081
+Live deployment of the game (Pushes to the repo gets reflected within a minute): http://flyingcars.westus.cloudapp.azure.com:8081
 
 ## High level concepts:
 

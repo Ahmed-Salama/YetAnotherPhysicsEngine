@@ -45,6 +45,16 @@ export default class GameManager extends GameElement {
   }
 
   public draw(ctx: CanvasRenderingContext2D) {
+    ctx.save();
+    ctx.fillStyle = "white";
+    ctx.font = "14px Arial";
+    ctx.fillText("[ UP / DOWN ] Ground movement", 10, 20);    
+    ctx.fillText("[ LEFT / RIGHT ] Rotate in the air", 10, 40);    
+    ctx.fillText("[ A ] Jump / Dodge", 10, 60);    
+    ctx.fillText("[ F ] Nitro", 10, 80);    
+    ctx.fillText("[ S ] Flip backwards", 10, 100);    
+    ctx.fillText("[ D ] Flip", 10, 120);    
     this.game_level_managers.get(this.current_game_level_manager_id).draw(ctx);
+    ctx.restore();
   }
 }

@@ -1,55 +1,38 @@
 import GameElement from "./game_element";
-import PhysicalSetup from "./physical_setup";
-import Car from "./car";
-import Constants from "./constants";
-import Obstacle from "./obstacle";
-import Goal from "./goal";
-import Ball from "./ball";
+import LayerManager from "./layer_manager";
 
 
 export default class GameLevelManager extends GameElement {
-  public original_physical_setup: PhysicalSetup;
-  public current_physical_setup: PhysicalSetup;
+  public original_layer_manager: LayerManager;
+  public current_layer_manager: LayerManager;
   public finished: boolean;
 
-  constructor(initialize: boolean, physical_setup: PhysicalSetup) {
-    super(initialize, physical_setup);
+  constructor(initialize: boolean, layer_manager: LayerManager) {
+    super(initialize, layer_manager);
   }
 
-  protected initialize(physical_setup: PhysicalSetup) {
-    this.current_physical_setup = physical_setup;
-    this.original_physical_setup = physical_setup;
+  protected initialize(layer_manager: LayerManager) {
+    this.current_layer_manager = layer_manager;
+    this.original_layer_manager = layer_manager;
   }
 
   public updated(time_unit: number): GameLevelManager {
     if (this.finished) return this;
 
-    const updated_physical_setup = this.current_physical_setup.updated(time_unit);
+    const updated_layer_manager = this.current_layer_manager.updated(time_unit);
 
-    const cars_or_balls_cars_below_sea_level = 
-      updated_physical_setup.filter_objects(o => o instanceof Car || o instanceof Ball).some(car => car.position.y > 110);
-    
-    const obstacles_hit =
-      updated_physical_setup.filter_objects(o => o instanceof Obstacle).map(o => o as Obstacle).some(o => o.hit);
-    
-    const goals_hit =
-      updated_physical_setup.filter_objects(o => o instanceof Goal).map(o => o as Goal).some(o => o.hit);
-
-    if (goals_hit) {
-      return this.copy({ finished: true });
+    if (updated_layer_manager.won) {
+      return this.copy({ finished: true, current_layer_manager: updated_layer_manager });
     }
 
-    const hit = cars_or_balls_cars_below_sea_level ||
-      obstacles_hit;
-    
-    if (hit) {
-        return this.copy({ current_physical_setup: this.original_physical_setup });
-    } else {
-        return this.copy({ current_physical_setup: updated_physical_setup }); 
+    if (updated_layer_manager.lost) {
+      return this.copy({ current_layer_manager: this.original_layer_manager });
     }
+
+    return this.copy({ current_layer_manager: updated_layer_manager });
   }
 
   public draw(ctx: CanvasRenderingContext2D) {
-    this.current_physical_setup.draw(ctx);
+    this.current_layer_manager.draw(ctx);
   }
 }

@@ -1,9 +1,4 @@
 import GameElement from "./game_element";
-import PhysicalSetup from "./physical_setup";
-import Car from "./car";
-import Constants from "./constants";
-import Obstacle from "./obstacle";
-import Goal from "./goal";
 import GameLevelManager from "./game_level_manager";
 import GameLevel1 from "./game_level_1";
 import GameLevel2 from "./game_level_2";
@@ -22,7 +17,6 @@ export default class GameManager extends GameElement {
   }
 
   protected initialize() {
-    this.current_game_level_manager_id = 0;
     this.game_level_managers = Immutable.Map<number, GameLevelManager>([
       [0, new GameLevelManager(true, new GameLevel1(true))],
       [1, new GameLevelManager(true, new GameLevel2(true))],
@@ -30,6 +24,7 @@ export default class GameManager extends GameElement {
       [3, new GameLevelManager(true, new GameLevel4(true))],
       [4, new GameLevelManager(true, new GameLevel5(true))],
     ]);
+    this.current_game_level_manager_id = this.game_level_managers.keySeq().min();
   }
 
   public updated(time_unit: number): GameManager {

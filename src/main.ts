@@ -1,11 +1,4 @@
 import Constants from './constants'
-import PhysicalSetup from './physical_setup'
-import GameLevel1 from './game_level_1';
-import GameLevel2 from './game_level_2';
-import GameLevelManager from './game_level_manager';
-import GameLevel3 from './game_level_3';
-import GameLevel4 from './game_level_4';
-import GameLevel5 from './game_level_5';
 import GameManager from './game_manager';
 
 $(document).ready(() => {
@@ -37,7 +30,15 @@ $(document).ready(() => {
     }, new GameManager(true))
     .subscribe((game_manager: GameManager) => {
       ctx.save();
-      ctx.fillStyle = Constants.clear_rect_color;
+
+      // add linear gradient
+      var grd = ctx.createLinearGradient(0, 0, 0, canvas.height);
+      // dark blue
+      grd.addColorStop(0, '#3498DB');
+      // light blue
+      grd.addColorStop(1, '#AED6F1');   
+      ctx.fillStyle = grd;
+
       ctx.fillRect(0, 0, Constants.canvas_size, Constants.canvas_size);
       ctx.restore();
 

@@ -1,11 +1,6 @@
-import Constants from './constants'
-import PhysicalSetup from './physical_setup'
 import Vector2D from './vector2d'
-import {Line} from './line'
 import PhysicalObject from './physical_object';
-import Utils from './utils';
 import Ground from './ground';
-import Car from './car';
 import Ball from './ball';
 
 export default class Goal extends Ground {

@@ -2,23 +2,20 @@ import Constants from './constants'
 import Vector2D from './vector2d'
 import {Line} from './line'
 import PhysicalObject from './physical_object';
-import Utils from './utils';
 
-const pattern = Utils.createPinstripeCanvas();
-
-export default class Ground extends PhysicalObject {
+export default class CustomObject extends PhysicalObject {
   public points: Array<Array<number>>;
   public color: string;
-  public border_color: string;
 
-  constructor(initialize: boolean, position: Vector2D, points: Array<Array<number>>) {
-    super(initialize, position, points);
+  constructor(initialize: boolean, position: Vector2D, points: Array<Array<number>>, color: string) {
+    super(initialize, position, points, color);
   }
 
-  protected initialize(position: Vector2D, points: Array<Array<number>>) {
+  protected initialize(position: Vector2D, points: Array<Array<number>>, color: string) {
     this.points = points;
     super.initialize();
     this.position = position;
+    this.color = color;
   }
 
   protected _define_attributes() {
@@ -26,8 +23,6 @@ export default class Ground extends PhysicalObject {
     this.position = Vector2D.empty;
     this.mass = Infinity;
     this.moment_of_inertia = Infinity;
-    this.color = Constants.ground_pattern_color;
-    this.border_color = Constants.ground_stroke_color;
   }
 
   protected _build_lines() {
@@ -68,16 +63,13 @@ export default class Ground extends PhysicalObject {
     }
     ctx.beginPath();
     const draw_polygon_pattern = (points: number[][]) => {
-      // ctx.fillStyle = ctx.createPattern(pattern, 'repeat');
       ctx.fillStyle = self.color;
-      ctx.strokeStyle = self.border_color;
       move_to(points[0][0], points[0][1]);
       for (var i = 1; i < points.length; i++) {
           line_to(points[i][0], points[i][1]);
       }
       line_to(points[0][0], points[0][1]);
       ctx.fill();
-      ctx.stroke();
     }
     draw_polygon_pattern(this.points);
     ctx.restore();

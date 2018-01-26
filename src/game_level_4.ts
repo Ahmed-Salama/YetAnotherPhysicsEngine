@@ -14,7 +14,7 @@ export default class GameLevel4 extends LayerManager {
     protected initialize() {
         super.initialize();
 
-        const my_car = new Car(true);
+        const my_car = new Car(true, new Vector2D(30, 80));
         const ground_down = new Ground(true, new Vector2D(0, 0), [[0, 400], [200, 400], [200, 90], [0, 90]]);
         const ground_left = new Ground(true, new Vector2D(60, -20), [[0, 60], [10, 60], [10, 0], [0, 0]]);
         const ground_right = new Ground(true, new Vector2D(120, -20), [[0, 60], [10, 60], [10, 0], [0, 0]]);

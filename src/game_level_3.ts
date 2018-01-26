@@ -15,7 +15,7 @@ export default class GameLevel3 extends LayerManager {
     protected initialize() {
         super.initialize();
 
-        const my_car = new Car(true);
+        const my_car = new Car(true, new Vector2D(40, 80));
         const ground_down = new Ground(true, new Vector2D(0, 0), [[0, 400], [200, 400], [200, 90], [0, 90]]);
         const obstacle = new Obstacle(true, new Vector2D(100, 80), [[0, 10], [10, 10], [10, 0], [0, 0]]);
         const goal = new Goal(true, new Vector2D(160, 80), [[0, 10], [10, 10], [10, 0], [0, 0]]);

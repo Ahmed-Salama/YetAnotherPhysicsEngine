@@ -28,8 +28,13 @@ export default class Car extends PhysicalObject {
   public touching_ground_normals: Immutable.List<Vector2D>;
   public tire_angle: number;
 
-  constructor(initialize: boolean) {
-      super(initialize);
+  constructor(initialize: boolean, position: Vector2D) {
+      super(initialize, position);
+  }
+
+  protected initialize(position: Vector2D) {
+    super.initialize();
+    this.position = position;
   }
 
   protected _define_attributes() {

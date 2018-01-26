@@ -280,7 +280,7 @@ export default class PhysicalLayer extends Layer {
       else return true;
     }
 
-    const multiplier = Utils.binary_search_yn(0, 10, 10, can);
+    const multiplier = Utils.binary_search_yn(0, 50, Constants.binary_search_iterations, can);
     const amplifier = 1;
     const o_a_updated = o_a.copy<PhysicalObject>({ velocity: o_a.velocity.add_vector(contact_velocity.multiply(multiplier * amplifier) )});
 
@@ -320,8 +320,8 @@ export default class PhysicalLayer extends Layer {
       else return true;
     }
 
-    const multiplier = Utils.binary_search_yn(0, 50, 10, can);
-    const amplifier = 1;
+    const multiplier = Utils.binary_search_yn(0, 50, Constants.binary_search_iterations, can);
+    const amplifier = 2;
     const o_a_updated = o_a.copy<PhysicalObject>({ velocity: o_a.velocity.add_vector(contact_velocity_a.multiply(multiplier * amplifier) )});
     const o_b_updated = o_b.copy<PhysicalObject>({ velocity: o_b.velocity.add_vector(contact_velocity_b.multiply(multiplier * amplifier) )});
 
@@ -387,7 +387,7 @@ export default class PhysicalLayer extends Layer {
       return collision.collided();
     }
 
-    const multiplier = Utils.binary_search_ny(0, 1, 5, can);
+    const multiplier = Utils.binary_search_ny(0, 1, Constants.binary_search_iterations, can);
     const collision_post_multiplier = this._collide_objects_with_time_multiplier(o_a_id, o_b_id, time_unit, multiplier);
 
     return collision_post_multiplier;

@@ -5,9 +5,9 @@ export default class Constants {
     [39, 'right'],
     [40, 'down'],
     [32, 'space'],
-    [65, 'A'],
-    [83, 'S'],
-    [68, 'D'],
+    [68, 'A'], // Jump
+    [86, 'S'], // Flip backwards
+    [67, 'D'], // Flip
     [70, 'nitro']
   ]);
 
@@ -35,7 +35,7 @@ export default class Constants {
   public static readonly time_scale = 2.6;
   public static readonly time_step = 1000 / Constants.frames_per_second;
   public static readonly tire_elasticity = 0;
-  public static readonly binary_search_iterations = 15;
+  public static readonly binary_search_iterations = 10;
 
   public static debugging = false;
   public static paused = false;

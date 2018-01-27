@@ -125,10 +125,10 @@ export default class PhysicalObject extends GameElement {
     ctx.beginPath();
     const to_draw_start_position = this._translate(start);
     const to_draw_end_position = this._translate(end);
-    ctx.moveTo(Constants.drawing_scale * to_draw_start_position.x,
-               Constants.drawing_scale * to_draw_start_position.y);
-    ctx.lineTo(Constants.drawing_scale * to_draw_end_position.x,
-               Constants.drawing_scale * to_draw_end_position.y);
+    ctx.moveTo(to_draw_start_position.x,
+               to_draw_start_position.y);
+    ctx.lineTo(to_draw_end_position.x,
+               to_draw_end_position.y);
     ctx.stroke();
     ctx.restore();
   }
@@ -139,8 +139,7 @@ export default class PhysicalObject extends GameElement {
     ctx.fillStyle = color;
     let to_draw_center = this._translate(center.multiply(1.0/f));
     ctx.beginPath();
-    ctx.arc(Constants.drawing_scale * to_draw_center.x, Constants.drawing_scale *
-            to_draw_center.y, radius, 0, 2 * Math.PI);
+    ctx.arc(to_draw_center.x, to_draw_center.y, radius, 0, 2 * Math.PI);
     ctx.fill();
     ctx.restore();
   }
@@ -171,10 +170,8 @@ export default class PhysicalObject extends GameElement {
       ctx.beginPath();
       const to_draw_start_position = self.position.add_vector(start);
       const to_draw_end_position = self.position.add_vector(end);
-      ctx.moveTo(Constants.drawing_scale * to_draw_start_position.x,
-                  Constants.drawing_scale * to_draw_start_position.y);
-      ctx.lineTo(Constants.drawing_scale * to_draw_end_position.x,
-                  Constants.drawing_scale * to_draw_end_position.y);
+      ctx.moveTo(to_draw_start_position.x, to_draw_start_position.y);
+      ctx.lineTo(to_draw_end_position.x, to_draw_end_position.y);
       ctx.stroke();
       ctx.restore();
     }

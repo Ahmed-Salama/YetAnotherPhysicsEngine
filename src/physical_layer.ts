@@ -321,7 +321,7 @@ export default class PhysicalLayer extends Layer {
     }
 
     const multiplier = Utils.binary_search_yn(0, 50, Constants.binary_search_iterations, can);
-    const amplifier = 2;
+    const amplifier = 1.6;
     const o_a_updated = o_a.copy<PhysicalObject>({ velocity: o_a.velocity.add_vector(contact_velocity_a.multiply(multiplier * amplifier) )});
     const o_b_updated = o_b.copy<PhysicalObject>({ velocity: o_b.velocity.add_vector(contact_velocity_b.multiply(multiplier * amplifier) )});
 

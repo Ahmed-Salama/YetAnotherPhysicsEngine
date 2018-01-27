@@ -24,7 +24,7 @@ export default class StaticLayer extends Layer {
   protected initialize(objects: Immutable.Set<PhysicalObject>) {
     super.initialize();
     this.objects = objects;
-    this.depth = 4;
+    this.depth = 2;
   }
 
   public updated(time_unit: number): StaticLayer {

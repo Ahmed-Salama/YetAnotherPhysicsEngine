@@ -44,14 +44,15 @@ export default class LayerManager extends GameElement {
     const self = this;
     ctx.save();
 
+    ctx.lineWidth = 0.1;
     this.layers.forEach((layer) => {
       ctx.save();
-      const camera_coordinates = self.camera.get_coordinates(self);
-      const camera_offset = 
-        new Vector2D(
-          Constants.drawing_scale * camera_coordinates.x / layer.depth,
-          Constants.drawing_scale * camera_coordinates.y / layer.depth);
-      ctx.translate(-camera_offset.x, -camera_offset.y - 0.45 * Constants.canvas_size);
+      const camera_original_offset = self.camera.get_original_offset().multiply(1.0/layer.depth);
+      const camera_offset = self.camera.get_coordinates(self).multiply(1.0/layer.depth);
+      ctx.translate(1200/2, 1.4 * 600/2);
+      ctx.scale(Constants.drawing_scale, Constants.drawing_scale);
+      ctx.translate(-camera_original_offset.x, -camera_original_offset.y);
+      ctx.translate(-camera_offset.x, -camera_offset.y);
       layer.draw(ctx);
       ctx.restore();
     });

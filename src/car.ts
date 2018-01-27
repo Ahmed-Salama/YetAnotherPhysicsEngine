@@ -400,16 +400,16 @@ export default class Car extends PhysicalObject {
     } else {
       const line_to = (x: number, y: number) => {
         const vector = this._translate(new Vector2D(x / f, y / f));
-        return ctx.lineTo(Constants.drawing_scale * vector.x, Constants.drawing_scale * vector.y);
+        return ctx.lineTo(vector.x, vector.y);
      }
       const move_to = (x: number, y: number) => {
         const vector = this._translate(new Vector2D(x / f, y / f));
-        return ctx.moveTo(Constants.drawing_scale * vector.x, Constants.drawing_scale * vector.y);
+        return ctx.moveTo(vector.x, vector.y);
       }
       const draw_polygon = (points: number[][], color: string) => {
         ctx.fillStyle = color;
         ctx.strokeStyle = "black";
-        ctx.lineWidth = 0.5;
+        // ctx.lineWidth = 0.1;
         ctx.beginPath();
         move_to(points[0][0] * this.direction_x, points[0][1] * this.direction_y);
         for (var i = 1; i < points.length; i++) {
@@ -451,10 +451,10 @@ export default class Car extends PhysicalObject {
       draw_polygon([[-4, -6], [-10, -5], [-14, -4], [-5, -4]], "#922B21");
 
       const draw_tire = (x: number, y: number) => {
-        this._draw_circle(new Vector2D(x, y), f, 11.5, "black", ctx);
-        this._draw_circle(new Vector2D(x, y), f, 11, "gray", ctx);
-        this._draw_circle(new Vector2D(x, y), f, 7, "lightgray", ctx);
-        this._draw_circle(new Vector2D(x, y), f, 5, "black", ctx);
+        this._draw_circle(new Vector2D(x, y), f, 2, "black", ctx);
+        this._draw_circle(new Vector2D(x, y), f, 1.8, "gray", ctx);
+        this._draw_circle(new Vector2D(x, y), f, 1, "lightgray", ctx);
+        this._draw_circle(new Vector2D(x, y), f, 0.8, "black", ctx);
 
         // const tire_vectors = Immutable.List([[-1, -3], [1, -3], [1, 3], [-1, 3]]).map(p => new Vector2D(p[0], p[1]).rotate(self.tire_angle));
         

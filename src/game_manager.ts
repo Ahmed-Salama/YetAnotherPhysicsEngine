@@ -5,6 +5,7 @@ import GameLevel2 from "./game_level_2";
 import GameLevel3 from "./game_level_3";
 import GameLevel4 from "./game_level_4";
 import GameLevel5 from "./game_level_5";
+import GameLevel2s0 from "./game_level_2_0";
 
 
 export default class GameManager extends GameElement {
@@ -19,10 +20,11 @@ export default class GameManager extends GameElement {
   protected initialize() {
     this.game_level_managers = Immutable.Map<number, GameLevelManager>([
       [0, new GameLevelManager(true, new GameLevel1(true))],
-      [1, new GameLevelManager(true, new GameLevel2(true))],
+      [1, new GameLevelManager(true, new GameLevel2s0(true))],
       [2, new GameLevelManager(true, new GameLevel3(true))],
-      [3, new GameLevelManager(true, new GameLevel4(true))],
-      [4, new GameLevelManager(true, new GameLevel5(true))],
+      [3, new GameLevelManager(true, new GameLevel2(true))],
+      [4, new GameLevelManager(true, new GameLevel4(true))],
+      [5, new GameLevelManager(true, new GameLevel5(true))],
     ]);
     this.current_game_level_manager_id = this.game_level_managers.keySeq().min();
   }
@@ -50,10 +52,10 @@ export default class GameManager extends GameElement {
     ctx.font = "14px Arial";
     ctx.fillText("[ UP / DOWN ] Ground movement", 10, 20);    
     ctx.fillText("[ LEFT / RIGHT ] Rotate in the air", 10, 40);    
-    ctx.fillText("[ A ] Jump / Dodge", 10, 60);    
+    ctx.fillText("[ D ] Jump / Dodge", 10, 60);    
     ctx.fillText("[ F ] Nitro", 10, 80);    
-    ctx.fillText("[ S ] Flip backwards", 10, 100);    
-    ctx.fillText("[ D ] Flip", 10, 120);    
+    ctx.fillText("[ V ] Flip backwards", 10, 100);    
+    ctx.fillText("[ C ] Flip", 10, 120);    
     this.game_level_managers.get(this.current_game_level_manager_id).draw(ctx);
     ctx.restore();
   }

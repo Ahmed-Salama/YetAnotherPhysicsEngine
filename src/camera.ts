@@ -18,6 +18,10 @@ export default class Camera extends Entity {
 
   public get_coordinates(layer_manager: LayerManager): Vector2D {
     const attached_object = layer_manager.get_object(this.attached_object_id) as PhysicalObject;
-    return attached_object.position.subtract(this.original_offset.multiply(2));
+    return attached_object.position.subtract(this.original_offset);
+  }
+
+  public get_original_offset(): Vector2D {
+    return this.original_offset;
   }
 }

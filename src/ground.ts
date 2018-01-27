@@ -60,11 +60,11 @@ export default class Ground extends PhysicalObject {
     ctx.save();
     const line_to = (x: number, y: number) => {
       const vector = this._translate(new Vector2D(x / f, y / f));
-      return ctx.lineTo(Constants.drawing_scale * vector.x, Constants.drawing_scale * vector.y);
+      return ctx.lineTo(vector.x, vector.y);
     }
     const move_to = (x: number, y: number) => {
       const vector = this._translate(new Vector2D(x / f, y / f));
-      return ctx.moveTo(Constants.drawing_scale * vector.x, Constants.drawing_scale * vector.y);
+      return ctx.moveTo(vector.x, vector.y);
     }
     ctx.beginPath();
     const draw_polygon_pattern = (points: number[][]) => {

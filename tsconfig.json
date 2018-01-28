@@ -2,8 +2,8 @@
   "compilerOptions": {
     "module": "es6",
     "noImplicitAny": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
     "sourceMap": false,
     "target": "es6",
     "outDir": "./dist/"

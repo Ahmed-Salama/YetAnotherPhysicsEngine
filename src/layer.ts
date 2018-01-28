@@ -1,15 +1,6 @@
-import Ball from './ball'
 import Camera from './camera'
-import Car from './car'
 import GameElement from './game_element'
-import Ground from './ground'
 import PhysicalObject from './physical_object'
-import {Collision} from './collision'
-import Utils from './utils';
-import Pipeline from './pipeline';
-import PipelineTransformer from './pipeline_transformer';
-import Vector2D from './vector2d';
-import Constants from './constants';
 
 export default class Layer extends GameElement {
   public camera: Camera;

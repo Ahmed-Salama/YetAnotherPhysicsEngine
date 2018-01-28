@@ -61,9 +61,9 @@ export default class Car extends PhysicalObject {
     super._build_lines();
 
     const f = 3;
-    const points = [[20, 8], [20, 4],
+    const points = [[20, 10], [20, 4],
                     [-2, -7], [-20, -10],
-                    [-20, 8], [-14, 14], [14, 14]];
+                    [-20, 10], [-16, 14], [16, 14]];
 
     const up_vector = new Vector2D(0, -1);
     const normal_overrides = [null, up_vector,
@@ -393,10 +393,10 @@ export default class Car extends PhysicalObject {
       ctx.strokeStyle = "red";
       super.draw(ctx);
 
-      this._draw_circle(this.forward, 1, 6, "violet", ctx);
-      this._draw_circle(this.jumper, 1, 6, this.jump_state == "station" ? "yellow" : "orange", ctx);
+      this._draw_circle(this.forward, 1, 1, "violet", ctx);
+      this._draw_circle(this.jumper, 1, 1, this.jump_state == "station" ? "yellow" : "orange", ctx);
 
-      this.tires.forEach(tire => self._draw_circle(tire, 1, 2, "red", ctx));
+      this.tires.forEach(tire => self._draw_circle(tire, 1, 0.25, "red", ctx));
     } else {
       const line_to = (x: number, y: number) => {
         const vector = this._translate(new Vector2D(x / f, y / f));

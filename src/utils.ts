@@ -47,8 +47,7 @@ export default class Utils {
     return patternCanvas;
   }
 
-  public static fillWithPattern(targetCanvas: HTMLCanvasElement,
-                                patternCanvas: HTMLCanvasElement){
+  public static fillWithPattern(targetCanvas: HTMLCanvasElement){
     const ctx = targetCanvas.getContext('2d', { antialias: false, depth: false });
     const width = targetCanvas.width;
     const height = targetCanvas.height;

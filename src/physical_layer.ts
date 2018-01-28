@@ -1,14 +1,11 @@
 import Ball from './ball'
-import Camera from './camera'
 import Car from './car'
-import GameElement from './game_element'
 import Ground from './ground'
 import PhysicalObject from './physical_object'
 import {Collision} from './collision'
 import Utils from './utils';
 import Pipeline from './pipeline';
 import PipelineTransformer from './pipeline_transformer';
-import Vector2D from './vector2d';
 import Constants from './constants';
 import Layer from './layer';
 import Obstacle from './obstacle';
@@ -147,7 +144,7 @@ export default class PhysicalLayer extends Layer {
       const o_b = this.objects.get(o_b_id);
       if (o_b instanceof Ground) {
         return new Pipeline<PhysicalLayer>(Immutable.List([
-          new PipelineTransformer(this._apply_ground_impulse_velocity, [o_a_id, collision, time_unit]),
+          new PipelineTransformer(this._apply_ground_impulse_velocity, [o_a_id, collision]),
           new PipelineTransformer(this._apply_ground_contact_velocity, [o_a_id, o_b_id, collision, time_unit]),
         ]));
       } else {
@@ -224,7 +221,7 @@ export default class PhysicalLayer extends Layer {
     return after_impulse_physical_setup;
   }
 
-  public _apply_ground_impulse_velocity(o_a_id: number, collision: Collision, time_unit: number): PhysicalLayer {
+  public _apply_ground_impulse_velocity(o_a_id: number, collision: Collision): PhysicalLayer {
     const o_a = this.objects.get(o_a_id);
 
     const intersection = collision.intersections.first();
@@ -329,8 +326,6 @@ export default class PhysicalLayer extends Layer {
   }
 
   public draw(ctx: CanvasRenderingContext2D) {
-    const self = this;
-
     ctx.save();
 
     // const average_frame_duration = this.frame_calculations.reduce((s, x) => s + x, 0) / this.frame_calculations.size;
@@ -354,8 +349,8 @@ export default class PhysicalLayer extends Layer {
   public filter_objects(predicate: (_: PhysicalObject) => boolean): Immutable.List<PhysicalObject> {
     return this.objects
                .entrySeq()
-               .filter(([k, v]) => predicate(v))
-               .map(([k, v]) => v)
+               .filter(([_, v]) => predicate(v))
+               .map(([_, v]) => v)
                .toList();
   } 
 

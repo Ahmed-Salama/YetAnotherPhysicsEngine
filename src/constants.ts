@@ -37,7 +37,7 @@ export default class Constants {
   public static readonly tire_elasticity = 0;
   public static readonly binary_search_iterations = 10;
 
-  public static debugging = true;
+  public static debugging = false;
   public static paused = false;
 
   // colors

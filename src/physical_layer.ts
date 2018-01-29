@@ -152,7 +152,7 @@ export default class PhysicalLayer extends Layer {
       } else {
         return new Pipeline<PhysicalLayer>(Immutable.List([
           new PipelineTransformer(this._apply_impulse_velocity, [o_a_id, o_b_id, collision, time_unit]),
-          new PipelineTransformer(this._apply_contact_velocity, [o_a_id, o_b_id, time_unit]),
+          new PipelineTransformer(this._apply_contact_velocity, [o_a_id, o_b_id, collision, time_unit]),
         ]));
       }
     }
@@ -163,11 +163,144 @@ export default class PhysicalLayer extends Layer {
     };
   }
 
+  private _choose_ground_collision_normal(o_a: PhysicalObject, ground: PhysicalObject, collision: Collision, time_unit: number) {
+    var dp = Immutable.Map<number, number>();
+    const calculate_ground_contact_multiplier = (normal: Vector2D) => {
+      if (dp.get(normal.id) != null) {
+        return dp.get(normal.id);
+      }
+
+      const contact_velocity = normal;
+
+      const can = (v: number) => {
+        const o_a_v = o_a.velocity.add_vector(contact_velocity.multiply(v));
+
+        const time_fraction = time_unit * 1.0 / 1000;
+        const o_a_delta_position = o_a_v.multiply(time_fraction);
+        const o_a_delta_angle = o_a.angular_velocity * time_fraction;
+
+        const o_a_translated = o_a.move(o_a_delta_position).rotate(o_a_delta_angle);
+
+        if (o_a_translated.calculate_collision(ground).collided()) return false;
+        else return true;
+      }
+
+      const multiplier = Utils.binary_search_yn(0, 50, Constants.binary_search_iterations, can);
+      dp = dp.set(normal.id, multiplier);
+      return multiplier;
+    };
+
+    const chosen_path = collision.intersections
+      .flatMap(intersection => { return Immutable.List([{ intersection: intersection, normal: intersection.self_line.normal.reverse() }, { intersection: intersection, normal: intersection.other_line.normal }])})
+      .map(({intersection, normal}) => { return { multiplier: calculate_ground_contact_multiplier(normal), intersection: intersection, normal: normal } })
+      .minBy(g => g.multiplier);
+
+      return chosen_path;
+  }
+
+  public _apply_ground_impulse_velocity(o_a_id: number, ground_id: number, collision: Collision, time_unit: number): PhysicalLayer {
+    const o_a = this.objects.get(o_a_id);
+    const ground = this.objects.get(ground_id);
+    
+    const m_a = o_a.mass;
+    const i_a = o_a.moment_of_inertia;
+    const c_a = o_a.position;
+
+    const chosen_path = this._choose_ground_collision_normal(o_a, ground, collision, time_unit);
+
+    const intersection = chosen_path.intersection;
+    const intersection_point = intersection.intersection_point;
+    const collision_normal = chosen_path.normal;
+
+    const elasticity = Math.min(intersection.self_line.elasticity, intersection.other_line.elasticity);
+
+    const r_ap = c_a.to(intersection_point);
+    const v_a1 = o_a.velocity;
+    const w_a1 = o_a.angular_velocity;
+
+    const v_ap1 = v_a1.add_vector(r_ap.crossW_inverted(w_a1));
+
+    const impulse = (1 + elasticity) * v_ap1.dot(collision_normal) / (1.0/m_a + Math.pow(r_ap.cross(collision_normal), 2)/i_a);
+
+    const impulse_velocity = collision_normal.multiply(-impulse / m_a);
+    const impulse_angular_velocity = r_ap.cross(collision_normal.multiply(-impulse)) / i_a;
+
+    const o_a_updated_with_impulse_velocity = o_a.copy<PhysicalObject>({
+        velocity: o_a.velocity.add_vector(impulse_velocity),
+        angular_velocity: o_a.angular_velocity + impulse_angular_velocity
+    });
+
+    const after_impulse_physical_setup = this.replace_element(o_a_updated_with_impulse_velocity);
+    return after_impulse_physical_setup;
+  }
+
+  public _apply_ground_contact_velocity(o_a_id: number, ground_id: number, collision: Collision, time_unit: number) {
+    const o_a = this.objects.get(o_a_id);
+    const ground = this.objects.get(ground_id);
+
+    const chosen_path = this._choose_ground_collision_normal(o_a, ground, collision, time_unit);
+    const multiplier = chosen_path.multiplier;
+
+    const collision_normal = chosen_path.normal;
+    const amplifier = 1;
+
+    const o_a_updated = o_a.copy<PhysicalObject>({ velocity: o_a.velocity.add_vector(collision_normal.multiply(multiplier * amplifier) )});
+
+    return this.replace_element(o_a_updated);
+  }
+
+  private _choose_collision_normal(o_a: PhysicalObject, o_b: PhysicalObject, collision: Collision, time_unit: number) {
+    const m_a = o_a.mass;
+    const m_b = o_b.mass;
+
+    var dp = Immutable.Map<number, number>();
+    const calculate_contact_multiplier = (normal: Vector2D) => {
+      if (dp.get(normal.id) != null) {
+        return dp.get(normal.id);
+      }
+
+      const contact_velocity = normal;
+
+      const contact_velocity_a = normal.multiply(m_b / (m_a + m_b));
+      const contact_velocity_b = normal.reverse().multiply(m_a / (m_a + m_b));
+
+      const can = (v: number) => {
+        const o_a_v = o_a.velocity.add_vector(contact_velocity_a.multiply(v));
+        const o_b_v = o_b.velocity.add_vector(contact_velocity_b.multiply(v));
+
+        const time_fraction = time_unit * 1.0 / 1000;
+        const o_a_delta_position = o_a_v.multiply(time_fraction);
+        const o_b_delta_position = o_b_v.multiply(time_fraction);
+
+        const o_a_delta_angle = o_a.angular_velocity * time_fraction;
+        const o_b_delta_angle = o_b.angular_velocity * time_fraction;
+
+        const o_a_translated = o_a.move(o_a_delta_position).rotate(o_a_delta_angle);
+        const o_b_translated = o_b.move(o_b_delta_position).rotate(o_b_delta_angle);
+
+        if (o_a_translated.calculate_collision(o_b_translated).collided()) return false;
+        else return true;
+      }
+
+      const multiplier = Utils.binary_search_yn(0, 50, Constants.binary_search_iterations, can);
+      dp = dp.set(normal.id, multiplier);
+      return multiplier;
+    };
+
+    const chosen_path = collision.intersections
+      .flatMap(intersection => { return Immutable.List([{ intersection: intersection, normal: intersection.self_line.normal.reverse() }, { intersection: intersection, normal: intersection.other_line.normal }])})
+      .map(({intersection, normal}) => { return { multiplier: calculate_contact_multiplier(normal), intersection: intersection, normal: normal } })
+      .minBy(g => g.multiplier);
+
+      return chosen_path;
+  }
+
   public _apply_impulse_velocity(o_a_id: number, o_b_id: number, collision: Collision, time_unit: number): PhysicalLayer {
     const o_a = this.objects.get(o_a_id);
     const o_b = this.objects.get(o_b_id);
     
-    const intersection = collision.intersections.first();
+    const chosen_path = this._choose_collision_normal(o_a, o_b, collision, time_unit);
+    const intersection = chosen_path.intersection
     const intersection_point = intersection.intersection_point;
 
     const elasticity = Math.min(intersection.self_line.elasticity, intersection.other_line.elasticity);
@@ -181,7 +314,7 @@ export default class PhysicalLayer extends Layer {
     const c_b = o_b.position;
     const r_bp = c_b.to(intersection_point);
 
-    const normal = collision.use_self_lines_normal ? intersection.self_line.normal.reverse() : intersection.other_line.normal;
+    const collision_normal = chosen_path.normal;
 
     const w_a1 = o_a.angular_velocity;
     const w_b1 = o_b.angular_velocity;
@@ -197,14 +330,14 @@ export default class PhysicalLayer extends Layer {
     const i_a = o_a.moment_of_inertia;
     const i_b = o_b.moment_of_inertia;
 
-    const impulse = (1 + elasticity) * v_ab1.dot(normal) /
-                    (1.0/m_a + 1.0/m_b + Math.pow(r_ap.cross(normal), 2)/i_a + Math.pow(r_bp.cross(normal), 2)/i_b);
+    const impulse = (1 + elasticity) * v_ab1.dot(collision_normal) /
+                    (1.0/m_a + 1.0/m_b + Math.pow(r_ap.cross(collision_normal), 2)/i_a + Math.pow(r_bp.cross(collision_normal), 2)/i_b);
 
-    const a_impulse_velocity = normal.multiply(-impulse / m_a)
-    const b_impulse_velocity = normal.multiply(impulse / m_b)
+    const a_impulse_velocity = collision_normal.multiply(-impulse / m_a)
+    const b_impulse_velocity = collision_normal.multiply(impulse / m_b)
 
-    const a_impulse_angular_velocity = r_ap.cross(normal.multiply(-impulse)) / i_a;
-    const b_impulse_angular_velocity = r_bp.cross(normal.multiply(impulse)) / i_b;
+    const a_impulse_angular_velocity = r_ap.cross(collision_normal.multiply(-impulse)) / i_a;
+    const b_impulse_angular_velocity = r_bp.cross(collision_normal.multiply(impulse)) / i_b;
 
     const o_a_updated_with_impulse_velocity = o_a.copy<PhysicalObject>({
         velocity: o_a.velocity.add_vector(a_impulse_velocity),
@@ -223,106 +356,7 @@ export default class PhysicalLayer extends Layer {
     return after_impulse_physical_setup;
   }
 
-  // private _calculate_contact_multiplier(o_a: PhysicalObject, o_b: PhysicalObject, )
-
-  public _apply_ground_impulse_velocity(o_a_id: number, ground_id: number, collision: Collision, time_unit: number): PhysicalLayer {
-    const o_a = this.objects.get(o_a_id);
-    const ground = this.objects.get(ground_id);
-    
-    const m_a = o_a.mass;
-    const i_a = o_a.moment_of_inertia;
-    const c_a = o_a.position;
-
-    const calculate_contact_multiplier = (intersection: Intersection, normal: Vector2D) => {
-      const contact_velocity = normal;
-
-      const can = (v: number) => {
-        const o_a_v = o_a.velocity.add_vector(contact_velocity.multiply(v));
-
-        const time_fraction = time_unit * 1.0 / 1000;
-        const o_a_delta_position = o_a_v.multiply(time_fraction);
-        const o_a_delta_angle = o_a.angular_velocity * time_fraction;
-
-        const o_a_translated = o_a.move(o_a_delta_position).rotate(o_a_delta_angle);
-
-        if (o_a_translated.calculate_collision(ground).collided()) return false;
-        else return true;
-      }
-
-      const multiplier = Utils.binary_search_yn(0, 50, Constants.binary_search_iterations, can);
-      return multiplier;
-    };
-
-    const chosen_path = collision.intersections
-      .flatMap(intersection => { return Immutable.List([{ intersection: intersection, normal: intersection.self_line.normal.reverse() }, { intersection: intersection, normal: intersection.other_line.normal }])})
-      .map(({intersection, normal}) => { return { multiplier: calculate_contact_multiplier(intersection, normal), intersection: intersection, normal: normal } })
-      .minBy(g => g.multiplier);
-    const intersection = chosen_path.intersection;
-    const intersection_point = intersection.intersection_point;
-    const elasticity = Math.min(intersection.self_line.elasticity, intersection.other_line.elasticity);
-    const normal = chosen_path.normal;
-    const r_ap = c_a.to(intersection_point);
-    const v_a1 = o_a.velocity;
-    const w_a1 = o_a.angular_velocity;
-
-    const v_ap1 = v_a1.add_vector(r_ap.crossW_inverted(w_a1));
-
-    const impulse = (1 + elasticity) * v_ap1.dot(normal) / (1.0/m_a + Math.pow(r_ap.cross(normal), 2)/i_a);
-
-    const impulse_velocity = normal.multiply(-impulse / m_a);
-    const impulse_angular_velocity = r_ap.cross(normal.multiply(-impulse)) / i_a;
-
-    const o_a_updated_with_impulse_velocity = o_a.copy<PhysicalObject>({
-        velocity: o_a.velocity.add_vector(impulse_velocity),
-        angular_velocity: o_a.angular_velocity + impulse_angular_velocity
-    });
-
-    const after_impulse_physical_setup = this.replace_element(o_a_updated_with_impulse_velocity);
-    return after_impulse_physical_setup;
-  }
-
-  public _apply_ground_contact_velocity(o_a_id: number, ground_id: number, collision: Collision, time_unit: number) {
-    const o_a = this.objects.get(o_a_id);
-    const ground = this.objects.get(ground_id);
-
-    const calculate_contact_multiplier = (intersection: Intersection, normal: Vector2D) => {
-      const contact_velocity = normal;
-
-      const can = (v: number) => {
-        const o_a_v = o_a.velocity.add_vector(contact_velocity.multiply(v));
-
-        const time_fraction = time_unit * 1.0 / 1000;
-        const o_a_delta_position = o_a_v.multiply(time_fraction);
-        const o_a_delta_angle = o_a.angular_velocity * time_fraction;
-
-        const o_a_translated = o_a.move(o_a_delta_position).rotate(o_a_delta_angle);
-
-        if (o_a_translated.calculate_collision(ground).collided()) return false;
-        else return true;
-      }
-
-      const multiplier = Utils.binary_search_yn(0, 50, Constants.binary_search_iterations, can);
-      return multiplier;
-    };
-
-    const chosen_path = collision.intersections
-      .flatMap(intersection => { return Immutable.List([{ intersection: intersection, normal: intersection.self_line.normal.reverse() }, { intersection: intersection, normal: intersection.other_line.normal }])})
-      .map(({intersection, normal}) => { return { multiplier: calculate_contact_multiplier(intersection, normal), intersection: intersection, normal: normal } })
-      .minBy(g => g.multiplier);
-    const intersection = chosen_path.intersection;
-    const multiplier = chosen_path.multiplier;
-    // console.log(multiplier);
-
-    const normal = chosen_path.normal;
-    const contact_velocity = normal;
-    const amplifier = 1;
-
-    const o_a_updated = o_a.copy<PhysicalObject>({ velocity: o_a.velocity.add_vector(contact_velocity.multiply(multiplier * amplifier) )});
-
-    return this.replace_element(o_a_updated);
-  }
-
-  public _apply_contact_velocity(o_a_id: number, o_b_id: number, time_unit: number) {
+  public _apply_contact_velocity(o_a_id: number, o_b_id: number, collision: Collision, time_unit: number) {
     const o_a = this.objects.get(o_a_id);
     const o_b = this.objects.get(o_b_id);
 
@@ -332,6 +366,7 @@ export default class PhysicalLayer extends Layer {
     const c_a = o_a.position;
     const c_b = o_b.position;
 
+    // The best is to use direct vector from a to b. line normals produces bad gameplay mechanics.
     const contact_normal = c_a.to(c_b).normalize();
 
     const contact_velocity_a = contact_normal.reverse().multiply(m_b / (m_a + m_b));

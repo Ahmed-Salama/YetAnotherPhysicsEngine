@@ -23,7 +23,7 @@ export default class GameLevel1 extends LayerManager {
           [my_car.id, my_car],
           [ground_down.id, ground_down],
           [goal.id, goal],
-          // [ball.id, ball],
+          [ball.id, ball],
         ]));
 
         const cloud1 = new CustomObject(true, new Vector2D(0, -40), [[0, 30], [5, 35], [15, 35], [20, 30], [18, 22], [16, 24], [14, 26], [10, 24], [8, 22], [6, 25]], "white");

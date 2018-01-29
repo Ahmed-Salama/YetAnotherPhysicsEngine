@@ -180,7 +180,7 @@ export default class Car extends PhysicalObject {
   }
 
   private _get_ground_lines_touching_both_tires(grounds: Immutable.List<PhysicalObject>): Immutable.List<Line> {
-    const TIRE_RADIUS = 2;
+    const TIRE_RADIUS = 1;
     const self = this;
 
     const get_ground_lines_touching_tires = (tires: Immutable.List<Vector2D>, ground: PhysicalObject): Immutable.List<Line> => {
@@ -375,10 +375,21 @@ export default class Car extends PhysicalObject {
     }
   }
 
+  private _cancel_upward_velocity_if_touching_ground(): Car {
+    const ground_normal = this.touching_ground_normals.first();
+    if (this.touching_ground) {
+      return this.copy({ velocity: this.velocity.rotate(-ground_normal.angle()).mapX(x => Math.max(x, 0)).rotate(ground_normal.angle()) });
+    }
+    else {
+      return this;
+    }
+  }
+
   public updated_with_collisions(collided_objects: Immutable.List<PhysicalObject>): Car {
     const pipeline = new Pipeline<PhysicalObject>(Immutable.List([
       new PipelineTransformer(this._cancel_vertical_velocity_if_dodging, []),
       new PipelineTransformer(this._cancel_angular_velocity_if_touching_ground, []),
+      new PipelineTransformer(this._cancel_upward_velocity_if_touching_ground, []),
     ]));
 
     return pipeline.execute(this) as Car;
@@ -462,8 +473,8 @@ export default class Car extends PhysicalObject {
         // draw_polygon(tire_vectors.map(v => [x - v.y, y + v.x]).toArray(), "lightgray");
       }
       
-      draw_tire(-12 * this.direction_x, 8 * this.direction_y);
-      draw_tire(12 * this.direction_x, 8 * this.direction_y);
+      draw_tire(-12 * this.direction_x, 9.5 * this.direction_y);
+      draw_tire(12 * this.direction_x, 9.5 * this.direction_y);
     }
 
     ctx.restore();

@@ -13,13 +13,12 @@ export class Collision extends Entity {
   public intersections: Immutable.List<Intersection>;
   use_self_lines_normal: boolean;
 
-  constructor(initialize: boolean, intersections: Immutable.List<Intersection>, use_self_lines_normal: boolean) {
-    super(initialize, intersections, use_self_lines_normal);
+  constructor(initialize: boolean, intersections: Immutable.List<Intersection>) {
+    super(initialize, intersections);
   }
 
-  public initialize(intersections: Immutable.List<Intersection>, use_self_lines_normal: boolean) {
+  public initialize(intersections: Immutable.List<Intersection>) {
     this.intersections = intersections;
-    this.use_self_lines_normal = use_self_lines_normal;
   }
 
   collided() {

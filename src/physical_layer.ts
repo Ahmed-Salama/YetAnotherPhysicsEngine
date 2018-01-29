@@ -191,7 +191,7 @@ export default class PhysicalLayer extends Layer {
     };
 
     const chosen_path = collision.intersections
-      .flatMap(intersection => { return Immutable.List([{ intersection: intersection, normal: intersection.self_line.normal.reverse() }, { intersection: intersection, normal: intersection.other_line.normal }])})
+      .flatMap(intersection => { return Immutable.Iterable([{ intersection: intersection, normal: intersection.self_line.normal.reverse() }, { intersection: intersection, normal: intersection.other_line.normal }])})
       .map(({intersection, normal}) => { return { multiplier: calculate_ground_contact_multiplier(normal), intersection: intersection, normal: normal } })
       .minBy(g => g.multiplier);
 
@@ -288,7 +288,7 @@ export default class PhysicalLayer extends Layer {
     };
 
     const chosen_path = collision.intersections
-      .flatMap(intersection => { return Immutable.List([{ intersection: intersection, normal: intersection.self_line.normal.reverse() }, { intersection: intersection, normal: intersection.other_line.normal }])})
+      .flatMap(intersection => { return Immutable.Iterable([{ intersection: intersection, normal: intersection.self_line.normal.reverse() }, { intersection: intersection, normal: intersection.other_line.normal }])})
       .map(({intersection, normal}) => { return { multiplier: calculate_contact_multiplier(normal), intersection: intersection, normal: normal } })
       .minBy(g => g.multiplier);
 

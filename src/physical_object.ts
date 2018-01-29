@@ -194,18 +194,14 @@ export default class PhysicalObject extends GameElement {
             const intersection_result = projected_l1.is_intersecting(projected_l2);
 
             if (intersection_result.intersection_exists) {
-              return Immutable.List([intersection_result]);
+              return Immutable.Iterable([intersection_result]);
             } else {
-              return Immutable.List<Intersection>();
+              return Immutable.Iterable<Intersection>(null);
             }
           });
       }).toList();
-    
-    // const self_colliding_lines_count = intersection_results.groupBy(x => x.self_line.id).count();
-    const other_colliding_lines_count = intersection_results.groupBy(x => x.other_line.id).count();
 
-    const use_self_lines_normal = other_colliding_lines_count == 1 ? false : true;
-    return new Collision(true, intersection_results, use_self_lines_normal);
+    return new Collision(true, intersection_results);
   }
 
   public move(vector: Vector2D): PhysicalObject {

@@ -55,15 +55,23 @@ export default class GameManager extends GameElement {
     ctx.save();
     this.game_level_managers.get(this.current_game_level_manager_id).draw(ctx);
     ctx.fillStyle = "white";
+    ctx.font = "bold 14px Arial";
+    ctx.fillText("CAR CONTROLS: ", 10, 20);    
     ctx.font = "14px Arial";
-    ctx.fillText("[ UP / DOWN ] Ground movement", 10, 20);    
-    ctx.fillText("[ LEFT / RIGHT ] Rotate in the air", 10, 40);    
-    ctx.fillText("[ D ] Jump / Dodge", 10, 60);    
-    ctx.fillText("[ F ] Nitro", 10, 80);    
-    ctx.fillText("[ V ] Flip backwards", 10, 100);    
-    ctx.fillText("[ C ] Flip", 10, 120);
+    ctx.fillText("[ UP / DOWN ] Ground movement", 10, 40);    
+    ctx.fillText("[ LEFT / RIGHT ] Rotate in the air", 10, 60);    
+    ctx.fillText("[ D ] Jump / Dodge", 10, 80);    
+    ctx.fillText("[ F ] Nitro", 10, 100);    
+    ctx.fillText("[ V ] Flip backwards", 10, 120);    
+    ctx.fillText("[ C ] Flip", 10, 140);
+
+    ctx.font = "bold 14px Arial";
+    ctx.fillText("LEVEL CONTROLS: ", 10, 170);    
+    ctx.font = "14px Arial";
+    ctx.fillText("[ Q ] Reset level", 10, 190);
+
     ctx.font = "bold 20px Arial";
-    ctx.fillText("Time elapsed: " + (this.time_elapsed / 1000 / Constants.time_scale).toFixed(2), 10, 160);
+    ctx.fillText("Time elapsed: " + (this.time_elapsed / 1000 / Constants.time_scale).toFixed(2), 10, 230);
     ctx.restore();
   }
 }

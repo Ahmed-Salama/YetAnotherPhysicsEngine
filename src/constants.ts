@@ -8,7 +8,8 @@ export default class Constants {
     [68, 'A'], // Jump
     [86, 'S'], // Flip backwards
     [67, 'D'], // Flip
-    [70, 'nitro']
+    [70, 'nitro'],
+    [81, 'reset']
   ]);
 
   public static readonly key_pressed = new Map([

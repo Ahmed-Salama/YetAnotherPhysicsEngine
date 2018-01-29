@@ -1,5 +1,6 @@
 import GameElement from "./game_element";
 import LayerManager from "./layer_manager";
+import Constants from "./constants";
 
 
 export default class GameLevelManager extends GameElement {
@@ -25,7 +26,7 @@ export default class GameLevelManager extends GameElement {
       return this.copy({ finished: true, current_layer_manager: updated_layer_manager });
     }
 
-    if (updated_layer_manager.lost) {
+    if (updated_layer_manager.lost || Constants.key_pressed.get("reset")) {
       return this.copy({ current_layer_manager: this.original_layer_manager });
     }
 

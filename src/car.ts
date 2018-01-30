@@ -82,7 +82,7 @@ export default class Car extends PhysicalObject {
                                             new Vector2D(p1[0] / f, p1[1] / f),
                                             new Vector2D(p2[0] / f, p2[1] / f),
                                             elasticity[i],
-                                            normal_overrides[i]));
+                                            null));
     }
 
     this.forward = new Vector2D(-20 / f, 0);

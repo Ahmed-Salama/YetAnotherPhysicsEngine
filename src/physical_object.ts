@@ -208,6 +208,22 @@ export default class PhysicalObject extends GameElement {
     return new Collision(true, intersection_results);
   }
 
+  public is_colliding(other: PhysicalObject): boolean {
+    const self = this;
+
+    return this.lines
+      .reduce((is_colliding_s, l1) => {
+        const projected_l1 = l1.rotate(self.angle).offset(self.position);
+        return is_colliding_s || other.lines
+          .reduce((is_colliding_e, l2) => {
+            const projected_l2 = l2.rotate(other.angle).offset(other.position);
+            const intersection_result = projected_l1.is_intersecting(projected_l2);
+
+            return is_colliding_e || intersection_result.intersection_exists;
+          }, false);
+      }, false)
+  }
+
   public move(vector: Vector2D): PhysicalObject {
     return this.copy({ position: this.position.add_vector(vector) });
   }

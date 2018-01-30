@@ -181,8 +181,7 @@ export default class PhysicalLayer extends Layer {
 
         const o_a_translated = o_a.move(o_a_delta_position).rotate(o_a_delta_angle);
 
-        if (o_a_translated.calculate_collision(ground).collided()) return false;
-        else return true;
+        return !o_a_translated.is_colliding(ground);
       }
 
       const multiplier = Utils.binary_search_yn(0, 50, Constants.binary_search_iterations, can);
@@ -278,8 +277,7 @@ export default class PhysicalLayer extends Layer {
         const o_a_translated = o_a.move(o_a_delta_position).rotate(o_a_delta_angle);
         const o_b_translated = o_b.move(o_b_delta_position).rotate(o_b_delta_angle);
 
-        if (o_a_translated.calculate_collision(o_b_translated).collided()) return false;
-        else return true;
+        return !o_a_translated.is_colliding(o_b_translated);
       }
 
       const multiplier = Utils.binary_search_yn(0, 50, Constants.binary_search_iterations, can);
@@ -386,8 +384,7 @@ export default class PhysicalLayer extends Layer {
       const o_a_translated = o_a.move(o_a_delta_position).rotate(o_a_delta_angle);
       const o_b_translated = o_b.move(o_b_delta_position).rotate(o_b_delta_angle);
 
-      if (o_a_translated.calculate_collision(o_b_translated).collided()) return false;
-      else return true;
+      return !o_a_translated.is_colliding(o_b_translated);
     }
 
     const multiplier = Utils.binary_search_yn(0, 50, Constants.binary_search_iterations, can);

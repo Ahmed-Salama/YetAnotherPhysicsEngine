@@ -33,15 +33,15 @@ export default class Car extends PhysicalObject {
   }
 
   protected initialize(position: Vector2D) {
-    super.initialize();
     this.position = position;
+    super.initialize();
+    this.tires = this.tires.map(tire => tire.subtract(this.center_of_mass)).toList();
   }
 
   protected _define_attributes() {
-    super._define_attributes();
-    this.position = new Vector2D(50, 80);
     this.velocity = new Vector2D(0, 0);
     this.angular_velocity = 0;
+    this.angle = 0;
     this.mass = 200;
     this.flying_state = "flying";
     this.dodge_direction = 0;
@@ -85,8 +85,8 @@ export default class Car extends PhysicalObject {
                                             null));
     }
 
-    this.forward = new Vector2D(-20 / f, 0);
-    this.jumper = new Vector2D(0, 14 / f);
+    this.forward = new Vector2D(-1, 0);
+    this.jumper = new Vector2D(0, 1);
     this.tires = Immutable.List([new Vector2D(-16 / f, 14 / f), new Vector2D(16 / f, 14 / f)]);
   }
 
@@ -187,7 +187,7 @@ export default class Car extends PhysicalObject {
       return ground.lines.filter(ground_line => {
         return tires.every(tire => {
           const projected_tire = tire.rotate(self.angle).add_vector(self.position);
-          return ground_line.point_distance(projected_tire) < TIRE_RADIUS;
+          return ground_line.offset(ground.position).point_distance(projected_tire) < TIRE_RADIUS;
         });
       }).toList();
     }
@@ -410,11 +410,11 @@ export default class Car extends PhysicalObject {
       this.tires.forEach(tire => self._draw_circle(tire, 1, 0.25, "red", ctx));
     } else {
       const line_to = (x: number, y: number) => {
-        const vector = this._translate(new Vector2D(x / f, y / f));
+        const vector = this._translate((new Vector2D(x, y)).multiply(1/f).subtract(self.center_of_mass));
         return ctx.lineTo(vector.x, vector.y);
      }
       const move_to = (x: number, y: number) => {
-        const vector = this._translate(new Vector2D(x / f, y / f));
+        const vector = this._translate((new Vector2D(x, y)).multiply(1/f).subtract(self.center_of_mass));
         return ctx.moveTo(vector.x, vector.y);
       }
       const draw_polygon = (points: number[][], color: string) => {
@@ -462,10 +462,11 @@ export default class Car extends PhysicalObject {
       draw_polygon([[-4, -6], [-10, -5], [-14, -4], [-5, -4]], "#922B21");
 
       const draw_tire = (x: number, y: number) => {
-        this._draw_circle(new Vector2D(x, y), f, 2, "black", ctx);
-        this._draw_circle(new Vector2D(x, y), f, 1.8, "gray", ctx);
-        this._draw_circle(new Vector2D(x, y), f, 1, "lightgray", ctx);
-        this._draw_circle(new Vector2D(x, y), f, 0.8, "black", ctx);
+        const tire_center = (new Vector2D(x, y)).multiply(1/f).subtract(self.center_of_mass);
+        this._draw_circle(tire_center, 1, 2, "black", ctx);
+        this._draw_circle(tire_center, 1, 1.8, "gray", ctx);
+        this._draw_circle(tire_center, 1, 1, "lightgray", ctx);
+        this._draw_circle(tire_center, 1, 0.8, "black", ctx);
 
         // const tire_vectors = Immutable.List([[-1, -3], [1, -3], [1, 3], [-1, 3]]).map(p => new Vector2D(p[0], p[1]).rotate(self.tire_angle));
         

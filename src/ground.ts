@@ -17,13 +17,14 @@ export default class Ground extends PhysicalObject {
 
   protected initialize(position: Vector2D, points: Array<Array<number>>) {
     this.points = points;
-    super.initialize();
     this.position = position;
+    super.initialize();
   }
 
   protected _define_attributes() {
-    super._define_attributes();
-    this.position = Vector2D.empty;
+    this.velocity = Vector2D.empty;
+    this.angular_velocity = 0;
+    this.angle = 0;
     this.mass = Infinity;
     this.moment_of_inertia = Infinity;
     this.color = Constants.ground_pattern_color;
@@ -58,28 +59,28 @@ export default class Ground extends PhysicalObject {
     }
 
     ctx.save();
-    const line_to = (x: number, y: number) => {
-      const vector = this._translate(new Vector2D(x / f, y / f));
+    const line_to = (v: Vector2D) => {
+      const vector = this._translate(v);
       return ctx.lineTo(vector.x, vector.y);
     }
-    const move_to = (x: number, y: number) => {
-      const vector = this._translate(new Vector2D(x / f, y / f));
+    const move_to = (v: Vector2D) => {
+      const vector = this._translate(v);
       return ctx.moveTo(vector.x, vector.y);
     }
     ctx.beginPath();
-    const draw_polygon_pattern = (points: number[][]) => {
+    const draw_polygon_pattern = (points: Vector2D[]) => {
       // ctx.fillStyle = ctx.createPattern(pattern, 'repeat');
       ctx.fillStyle = self.color;
       ctx.strokeStyle = self.border_color;
-      move_to(points[0][0], points[0][1]);
+      move_to(points[0]);
       for (var i = 1; i < points.length; i++) {
-          line_to(points[i][0], points[i][1]);
+          line_to(points[i]);
       }
-      line_to(points[0][0], points[0][1]);
+      line_to(points[0]);
       ctx.fill();
       ctx.stroke();
     }
-    draw_polygon_pattern(this.points);
+    draw_polygon_pattern(this.lines.map(line => line.start_position).toArray());
     ctx.restore();
   }
 }

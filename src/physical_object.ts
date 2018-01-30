@@ -45,6 +45,10 @@ export default class PhysicalObject extends GameElement {
               .add_vector(line.start_position.multiply(contribution_ratio))
               .add_vector(line.end_position.multiply(contribution_ratio)),
           Vector2D.empty);
+    
+    const self = this;
+    this.lines = this.lines.map(line => line.copy<Line>({ start_position: line.start_position.subtract(self.center_of_mass), end_position: line.end_position.subtract(self.center_of_mass) })).toList();
+    this.position = this.position.add_vector(this.center_of_mass);
   }
 
   protected _define_attributes() {
@@ -162,7 +166,7 @@ export default class PhysicalObject extends GameElement {
                         ctx);
     });
 
-    this._draw_circle(this.center_of_mass, 1, 2, "black", ctx);
+    this._draw_circle(Vector2D.empty, 1, 2, "black", ctx);
 
     const _stroke_line_no_angle = (start: Vector2D, end: Vector2D, color: string) => {
       ctx.save();

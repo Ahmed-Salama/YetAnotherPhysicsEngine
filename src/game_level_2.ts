@@ -6,20 +6,22 @@ import Camera from "./camera";
 import Vector2D from "./vector2d";
 import Obstacle from "./obstacle";
 import Goal from "./goal";
-import LayerManager from "./layer_manager";
 import PhysicalObject from "./physical_object";
 import CustomObject from "./custom_object";
 import StaticLayer from "./static_layer";
+import GameLevel from "./game_level";
 
-export default class GameLevel2 extends LayerManager {
+export default class GameLevel2 extends GameLevel {
     protected initialize() {
         super.initialize();
 
-        const my_car = new Car(true, new Vector2D(50, 82));
+        this.game_level_name = "2";
+
+        const my_car = new Car(true, new Vector2D(90, 80));
         const ground_down = new Ground(true, new Vector2D(0, 0), [[0, 400], [200, 400], [200, 90], [0, 90]]);
-        const obstacle = new Obstacle(true, new Vector2D(120, 80), [[0, 10], [10, 10], [10, 0], [0, 0]]);
-        const goal = new Goal(true, new Vector2D(120, 30), [[0, 10], [10, 10], [10, 0], [0, 0]]);
-        const ball = (new Ball(true, new Vector2D(60, 20))).copy({ velocity: new Vector2D(10, -5) });
+        const obstacle = new Obstacle(true, new Vector2D(140, 80), [[0, 10], [10, 10], [10, 0], [0, 0]]);
+        const goal = new Goal(true, new Vector2D(40, 80), [[0, 10], [10, 10], [10, 0], [0, 0]]);
+        const ball = new Ball(true, new Vector2D(90, 40));
 
         const physical_layer = new PhysicalLayer(true, Immutable.Map<number, PhysicalObject>([
             [my_car.id, my_car],

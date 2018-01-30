@@ -6,14 +6,16 @@ import Camera from "./camera";
 import Vector2D from "./vector2d";
 import Obstacle from "./obstacle";
 import Goal from "./goal";
-import LayerManager from "./layer_manager";
 import CustomObject from "./custom_object";
 import StaticLayer from "./static_layer";
 import PhysicalObject from "./physical_object";
+import GameLevel from "./game_level";
 
-export default class GameLevel3 extends LayerManager {
+export default class GameLevel3 extends GameLevel {
     protected initialize() {
         super.initialize();
+
+        this.game_level_name = "3";
 
         const my_car = new Car(true, new Vector2D(50, 80));
         const ground_down = new Ground(true, new Vector2D(0, 0), [[0, 400], [200, 400], [200, 90], [0, 90]]);

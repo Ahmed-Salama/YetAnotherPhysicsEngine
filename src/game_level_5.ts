@@ -5,23 +5,29 @@ import Ball from "./ball";
 import Camera from "./camera";
 import Vector2D from "./vector2d";
 import Goal from "./goal";
-import LayerManager from "./layer_manager";
+import PhysicalObject from "./physical_object";
 import CustomObject from "./custom_object";
 import StaticLayer from "./static_layer";
-import PhysicalObject from "./physical_object";
+import GameLevel from "./game_level";
 
-export default class GameLevel5 extends LayerManager {
+export default class GameLevel5 extends GameLevel {
     protected initialize() {
         super.initialize();
 
+        this.game_level_name = "5";
+
         const my_car = new Car(true, new Vector2D(30, 80));
         const ground_down = new Ground(true, new Vector2D(0, 0), [[0, 400], [200, 400], [200, 90], [0, 90]]);
+        const ground_left = new Ground(true, new Vector2D(60, -20), [[0, 60], [10, 60], [10, 0], [0, 0]]);
+        const ground_right = new Ground(true, new Vector2D(120, -20), [[0, 60], [10, 60], [10, 0], [0, 0]]);
         const goal = new Goal(true, new Vector2D(90, 0), [[0, 10], [10, 10], [10, 0], [0, 0]]);
-        const ball = new Ball(true, new Vector2D(50, 40));
+        const ball = new Ball(true, new Vector2D(50, 60));
 
         const physical_layer = new PhysicalLayer(true, Immutable.Map<number, PhysicalObject>([
             [my_car.id, my_car],
             [ground_down.id, ground_down],
+            [ground_left.id, ground_left],
+            [ground_right.id, ground_right],
             [goal.id, goal],
             [ball.id, ball],
         ]));

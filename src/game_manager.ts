@@ -1,11 +1,12 @@
 import GameElement from "./game_element";
 import GameLevelManager from "./game_level_manager";
+import GameLevelP from "./game_level_p";
 import GameLevel1 from "./game_level_1";
 import GameLevel2 from "./game_level_2";
 import GameLevel3 from "./game_level_3";
 import GameLevel4 from "./game_level_4";
 import GameLevel5 from "./game_level_5";
-import GameLevel2s0 from "./game_level_2_0";
+import GameLevel6 from "./game_level_6";
 import Constants from "./constants";
 
 
@@ -23,12 +24,13 @@ export default class GameManager extends GameElement {
 
   protected initialize() {
     this.game_level_managers = Immutable.Map<number, GameLevelManager>([
+      [0, new GameLevelManager(true, new GameLevelP(true))],
       [1, new GameLevelManager(true, new GameLevel1(true))],
-      [2, new GameLevelManager(true, new GameLevel2s0(true))],
+      [2, new GameLevelManager(true, new GameLevel2(true))],
       [3, new GameLevelManager(true, new GameLevel3(true))],
-      [4, new GameLevelManager(true, new GameLevel2(true))],
-      [5, new GameLevelManager(true, new GameLevel4(true))],
-      [6, new GameLevelManager(true, new GameLevel5(true))],
+      [4, new GameLevelManager(true, new GameLevel4(true))],
+      [5, new GameLevelManager(true, new GameLevel5(true))],
+      [6, new GameLevelManager(true, new GameLevel6(true))],
     ]);
     this.current_game_level_manager_id = this.game_level_managers.keySeq().min();
     this.max_game_level_id = this.game_level_managers.keySeq().max();
@@ -37,7 +39,7 @@ export default class GameManager extends GameElement {
   public updated(time_unit: number): GameManager {
     if (this.finished) return this;
 
-    const new_time_elapsed = this.time_elapsed + time_unit;
+    const new_time_elapsed = this.time_elapsed + time_unit * (this.current_game_level_manager_id == 0 ? 0 : 1);
 
     const current_game_level_manager = this.game_level_managers.get(this.current_game_level_manager_id);
     const updated_current_game_level_manager = current_game_level_manager.updated(time_unit);
@@ -81,11 +83,6 @@ export default class GameManager extends GameElement {
     ctx.font = "bold 20px verdana";
     ctx.fillText("Time elapsed: " + (this.time_elapsed / 1000 / Constants.time_scale).toFixed(2), 10, 230);
 
-    ctx.font = "bold 30px verdana";
-    ctx.fillStyle = "white";
-    ctx.strokeStyle = "black";
-    draw_text("LEVEL", 1200/2 - 40, 30);
-    draw_text(this.current_game_level_manager_id + "", 1200/2, 60);
     ctx.restore();
   }
 }

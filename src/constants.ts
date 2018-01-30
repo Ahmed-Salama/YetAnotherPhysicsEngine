@@ -9,7 +9,8 @@ export default class Constants {
     [86, 'S'], // Flip backwards
     [67, 'D'], // Flip
     [70, 'nitro'],
-    [81, 'reset']
+    [81, 'reset'],
+    [87, 'start']
   ]);
 
   public static readonly key_pressed = new Map([
@@ -33,7 +34,7 @@ export default class Constants {
   public static readonly inner_field_width = Constants.field_width - 2;
   public static readonly jump_timer_duration = 8;
   public static readonly dodge_timer_duration = 70;
-  public static readonly flip_timer_duration = 40;
+  public static readonly flip_timer_duration = 45;
   public static readonly time_scale = 2.6;
   public static readonly time_step = 1000 / Constants.frames_per_second;
   public static readonly tire_elasticity = 0;

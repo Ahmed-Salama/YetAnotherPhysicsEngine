@@ -15,6 +15,7 @@ export default class Car extends PhysicalObject {
   public dodge_direction: number;
   public jump_state: string;
   public jump_timer: number;
+  public flip_timer: number;
   public jump_count: number;
   public nitro_state: string;
   public flip_x_state: string;
@@ -47,6 +48,7 @@ export default class Car extends PhysicalObject {
     this.dodge_direction = 0;
     this.jump_state = "station";
     this.jump_timer = 0;
+    this.flip_timer = 0;
     this.jump_count = 0;
     this.nitro_state = "idle";
     this.flip_x_state = "idle";
@@ -219,6 +221,7 @@ export default class Car extends PhysicalObject {
   private _apply_jump_input(time_unit: number): Car {
     const is_dodging = 
       !this.touching_ground && 
+      this.flip_timer > 0 && 
       ((Constants.key_pressed.get("left") == 1) !== (Constants.key_pressed.get("right") == 1));
 
     const after_jump_input: Car = Constants.key_pressed.get("A") ?
@@ -227,18 +230,22 @@ export default class Car extends PhysicalObject {
           flying_state: "flying",
           jump_state: "jumping",
           jump_timer: Constants.jump_timer_duration,
-          jump_count: this.jump_count - 1
+          jump_count: this.jump_count - 1,
+          flip_timer: Constants.flip_timer_duration
         }) :
         this.copy({
-          jump_timer: Math.max(0, this.jump_timer - 1)
+          jump_timer: Math.max(0, this.jump_timer - 1),
+          flip_timer: Math.max(0, this.flip_timer - 1)
         })) :
       (this.jump_state == "station" ?
         this.copy({
-          jump_timer: Math.max(0, this.jump_timer - 1)
+          jump_timer: Math.max(0, this.jump_timer - 1),
+          flip_timer: Math.max(0, this.flip_timer - 1)
         }) :
         this.copy({
           jump_state: "station",
-          jump_timer: Math.max(0, this.jump_timer - 1)
+          jump_timer: Math.max(0, this.jump_timer - 1),
+          flip_timer: Math.max(0, this.flip_timer - 1)
         }));
 
     const car_jumping_index = after_jump_input.jump_timer;
@@ -263,6 +270,7 @@ export default class Car extends PhysicalObject {
   private _apply_dodge_input(time_unit: number): Car {
     const is_dodging = 
       !this.touching_ground && 
+      this.flip_timer > 0 && 
       ((Constants.key_pressed.get("left") == 1) !== (Constants.key_pressed.get("right") == 1));
 
     const dodge_direction = 

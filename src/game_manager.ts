@@ -87,8 +87,10 @@ export default class GameManager extends GameElement {
       ctx.fillStyle = "white";
       ctx.font = "bold 80px verdana";
       ctx.fillText("GAME OVER", Constants.canvas_width/2 - 260, 230);
-      ctx.font = "bold 20px verdana";
-      ctx.fillText("Want more levels? Share it to a friend!", Constants.canvas_width/2 - 210, 260);
+      ctx.font = "bold 40px verdana";
+      ctx.fillText("Your time: " + (this.time_elapsed / 1000 / Constants.time_scale).toFixed(2), Constants.canvas_width/2 - 180, 280);
+      ctx.font = "20px verdana";
+      ctx.fillText("Want more levels? Share it to a friend!", Constants.canvas_width/2 - 185, 370);
 
       return;
     }

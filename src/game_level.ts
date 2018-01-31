@@ -9,6 +9,7 @@ import LayerManager from "./layer_manager";
 import PhysicalObject from "./physical_object";
 import StaticLayer from "./static_layer";
 import CustomObject from "./custom_object";
+import Constants from "./constants";
 
 export default class GameLevel extends LayerManager {
     public game_level_name: string;
@@ -29,9 +30,9 @@ export default class GameLevel extends LayerManager {
       ctx.font = "bold 30px verdana";
       ctx.fillStyle = "white";
       ctx.strokeStyle = "black";
-      draw_text("LEVEL", 1200/2 - 40, 30);
+      draw_text("LEVEL", Constants.canvas_width/2 - 40, 30);
       ctx.font = "bold 24px verdana";
-      draw_text(this.game_level_name, 1200/2, 60);
+      draw_text(this.game_level_name, Constants.canvas_width/2, 60);
 
       ctx.restore();
     }

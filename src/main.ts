@@ -29,19 +29,6 @@ $(document).ready(() => {
       }
     }, new GameManager(true))
     .subscribe((game_manager: GameManager) => {
-      ctx.save();
-
-      // add linear gradient
-      var grd = ctx.createLinearGradient(0, 0, 0, canvas.height);
-      // dark blue
-      grd.addColorStop(0, '#3498DB');
-      // light blue
-      grd.addColorStop(1, '#AED6F1');   
-      ctx.fillStyle = grd;
-
-      ctx.fillRect(0, 0, Constants.canvas_size, Constants.canvas_size);
-      ctx.restore();
-
       game_manager.draw(ctx);
     });
 });

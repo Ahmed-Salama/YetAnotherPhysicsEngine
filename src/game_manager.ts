@@ -15,6 +15,7 @@ export default class GameManager extends GameElement {
   public current_game_level_manager_id: number;
   public max_game_level_id: number;
   public finished: boolean;
+  public ending_drawn: boolean;
   public time_elapsed: number;
 
   constructor(initialize: boolean) {
@@ -37,7 +38,10 @@ export default class GameManager extends GameElement {
   }
 
   public updated(time_unit: number): GameManager {
-    if (this.finished) return this;
+    if (this.finished) {
+      if (this.ending_drawn) return this;
+      else return this.copy({ ending_drawn: true });
+    }
 
     const new_time_elapsed = this.time_elapsed + time_unit * (this.current_game_level_manager_id == 0 ? 0 : 1);
 
@@ -57,6 +61,46 @@ export default class GameManager extends GameElement {
 
   public draw(ctx: CanvasRenderingContext2D) {
     ctx.save();
+
+    if (this.finished) {
+      if (this.ending_drawn) return;
+
+      var newImage = ctx.createImageData(Constants.canvas_width, Constants.canvas_height);
+      var arr = ctx.getImageData(0, 0, Constants.canvas_width, Constants.canvas_height);
+      var pixels = arr.data;
+
+      for(var i = 0; i < pixels.length; i+=4){
+          var r = 255 - pixels[i];
+          var g = 255 - pixels[i + 1];
+          var b = 255 - pixels[i + 2];
+          var a = pixels[i + 3];
+          const grayscale_value =  0.05 * r + 0.05 * g + 0.005 * b;
+          newImage.data[i] = grayscale_value;
+          newImage.data[i + 1] = grayscale_value;
+          newImage.data[i + 2] = grayscale_value;
+          newImage.data[i + 3] = a;
+      }
+
+      ctx.clearRect(0, 0, Constants.canvas_width, Constants.canvas_height);
+      ctx.putImageData(newImage, 0, 0);
+
+      ctx.fillStyle = "white";
+      ctx.font = "bold 80px verdana";
+      ctx.fillText("GAME OVER", Constants.canvas_width/2 - 260, 230);
+      ctx.font = "bold 20px verdana";
+      ctx.fillText("Want more levels? Share it to a friend!", Constants.canvas_width/2 - 210, 260);
+
+      return;
+    }
+
+    // Draw the sky background
+    // add linear gradient
+    var grd = ctx.createLinearGradient(0, 0, 0, Constants.canvas_height);
+    grd.addColorStop(0, '#3498DB'); // dark blue
+    grd.addColorStop(1, '#AED6F1'); // light blue
+    ctx.fillStyle = grd;
+    ctx.fillRect(0, 0, Constants.canvas_width, Constants.canvas_width);
+
     this.game_level_managers.get(this.current_game_level_manager_id).draw(ctx);
 
     const draw_text = (text: string, x: number, y: number) => {

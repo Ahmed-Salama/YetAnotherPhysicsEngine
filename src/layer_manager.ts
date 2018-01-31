@@ -49,7 +49,7 @@ export default class LayerManager extends GameElement {
       ctx.save();
       const camera_original_offset = self.camera.get_original_offset().multiply(1.0/layer.depth);
       const camera_offset = self.camera.get_coordinates(self).multiply(1.0/layer.depth);
-      ctx.translate(1200/2, 1.4 * 600/2);
+      ctx.translate(Constants.canvas_width/2, 1.4 * Constants.canvas_height/2);
       ctx.scale(Constants.drawing_scale, Constants.drawing_scale);
       ctx.translate(-camera_original_offset.x, -camera_original_offset.y);
       ctx.translate(-camera_offset.x, -camera_offset.y);

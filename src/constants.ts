@@ -24,7 +24,8 @@ export default class Constants {
   public static readonly block_size = 18;
   public static readonly canvas_offset_x = 50;
   public static readonly canvas_offset_y = 90;
-  public static readonly canvas_size = 1200;
+  public static readonly canvas_width = 1200;
+  public static readonly canvas_height = 600;
   public static readonly drawing_scale = 6;
   public static readonly eps = 0.0000001;
   public static readonly field_height = 30;
